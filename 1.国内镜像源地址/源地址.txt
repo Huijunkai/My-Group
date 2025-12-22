@@ -15,3 +15,6 @@ https://pypi.tuna.tsinghua.edu.cn/simple
 华中科技大学开源镜像站：http://mirrors.hust.edu.cn/
 
 中国科学技术大学Mirror：https://chinanet.mirrors.ustc.edu.cn/
+
+
+cs 陈淑蓝
