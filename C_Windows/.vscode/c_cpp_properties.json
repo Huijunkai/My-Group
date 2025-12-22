@@ -1,0 +1,19 @@
+{
+  "configurations": [
+    {
+      "name": "MSYS2-UCRT64",  // 配置名称（自定义）
+      "includePath": [
+        "${workspaceFolder}/**",  // 项目自身目录
+        "C:/msys64/ucrt64/include",  // MSYS2 UCRT64 的头文件根目录
+        "C:/msys64/ucrt64/include/sys"  // 显式指定 sys 目录（确保找到 wait.h）
+      ],
+      "defines": ["_DEBUG", "UNICODE", "_UNICODE"],
+      "compilerPath": "C:/msys64/ucrt64/bin/gcc.exe",  // MSYS2 UCRT64 的 gcc 路径
+      "cStandard": "c17",  // 匹配你的 gcc 版本（15.2.0 支持 c17/c23）
+      "cppStandard": "c++17",
+      "intelliSenseMode": "gcc-x64",  // 对应 x86_64 架构的 gcc
+      "configurationProvider": "ms-vscode.makefile-tools"  // 可选，增强兼容性
+    }
+  ],
+  "version": 4
+}

@@ -1,0 +1,22 @@
+{
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "python-envs.pythonProjects": [
+        {
+            "path": "",
+            "envManager": "ms-python.python:system",
+            "packageManager": "ms-python.python:pip"
+        }
+    ],
+    "sqltools.connections": [
+        {
+            "hiveCLIServiceProtocolVersion": "V11",
+            "previewLimit": 50,
+            "driver": "Hive",
+            "name": "node1",
+            "host": "192.168.88.151",
+            "port": 10000,
+            "username": "root",
+            "password": "hadoop"
+        }
+    ]
+}

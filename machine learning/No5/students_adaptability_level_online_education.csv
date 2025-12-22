@@ -1,0 +1,41 @@
+Gender,Education Level,IT Student,Financial Condition,Internet Type,Network Type,Device,Adaptivity Level
+Girl,School,No,Mid,Mobile Data,4G,Mobile,Moderate
+Girl,College,No,Mid,Wifi,4G,Mobile,Moderate
+Girl,School,No,Mid,Mobile Data,3G,Mobile,Moderate
+Girl,College,No,Mid,Mobile Data,4G,Mobile,Low
+Boy,University,Yes,Mid,Mobile Data,4G,Mobile,Moderate
+Girl,College,No,Mid,Wifi,4G,Mobile,Moderate
+Boy,School,No,Poor,Mobile Data,3G,Mobile,Low
+Girl,University,Yes,Mid,Wifi,3G,Mobile,Moderate
+Girl,College,Yes,Mid,Mobile Data,4G,Mobile,Moderate
+Girl,School,No,Poor,Mobile Data,3G,Mobile,High
+Girl,University,No,Poor,Mobile Data,4G,Mobile,Low
+Girl,School,No,Mid,Wifi,3G,Mobile,Low
+Boy,University,No,Mid,Wifi,4G,Computer,Moderate
+Girl,University,Yes,Mid,Wifi,4G,Mobile,Moderate
+Girl,School,No,Poor,Mobile Data,3G,Mobile,Low
+Boy,School,No,Mid,Mobile Data,4G,Mobile,Moderate
+Boy,University,Yes,Mid,Wifi,3G,Computer,Low
+Boy,University,Yes,Mid,Wifi,4G,Computer,Moderate
+Girl,School,No,Poor,Mobile Data,4G,Mobile,Moderate
+Girl,School,No,Mid,Mobile Data,3G,Mobile,Moderate
+Boy,School,No,Mid,Mobile Data,4G,Mobile,Moderate
+Boy,University,Yes,Mid,Wifi,3G,Computer,Low
+Boy,College,No,Mid,Wifi,4G,Mobile,Low
+Girl,School,No,Mid,Mobile Data,4G,Mobile,Moderate
+Boy,University,Yes,Mid,Mobile Data,3G,Mobile,Moderate
+Boy,University,Yes,Poor,Mobile Data,4G,Mobile,Moderate
+Boy,School,No,Poor,Mobile Data,4G,Mobile,Low
+Girl,School,No,Mid,Mobile Data,4G,Mobile,Moderate
+Boy,University,No,Mid,Mobile Data,4G,Mobile,Low
+Girl,University,Yes,Mid,Mobile Data,3G,Mobile,Low
+Girl,School,No,Mid,Mobile Data,3G,Mobile,Low
+Boy,School,No,Poor,Mobile Data,3G,Mobile,Low
+Boy,University,No,Mid,Wifi,4G,Mobile,Moderate
+Boy,College,No,Mid,Mobile Data,4G,Mobile,Low
+Girl,College,No,Mid,Mobile Data,3G,Mobile,Moderate
+Girl,University,Yes,Mid,Wifi,4G,Mobile,Moderate
+Boy,School,No,Mid,Wifi,4G,Mobile,Moderate
+Boy,University,No,Poor,Mobile Data,4G,Mobile,Low
+Boy,University,No,Mid,Mobile Data,4G,Mobile,Moderate
+Boy,University,Yes,Mid,Wifi,4G,Computer,Moderate
