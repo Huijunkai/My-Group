@@ -63,7 +63,7 @@ class DiscussionDetailedPageSpider(Spider):
                     title = row.get('标题', '未获取到标题').strip()
                     
                     if not url or url == '未获取到信息':
-                        self.logger.warning(f"跳过空URL，标题：{title}")
+                        self.logger.info(f"跳过空URL，标题：{title}")
                         continue
                     url_list.append((url, title))
             
@@ -80,7 +80,7 @@ class DiscussionDetailedPageSpider(Spider):
                 )
                 self.logger.info(f"共检测到 {self.total_urls} 个有效爬取URL")
             else:
-                self.logger.warning("没有可爬取的有效URL")
+                self.logger.info("没有可爬取的有效URL")
                 return
         
         except Exception as e:
@@ -117,7 +117,7 @@ class DiscussionDetailedPageSpider(Spider):
             # 1. 提取预加载的JSON数据（核心数据来源）
             preloaded_data = response.css('#data-preloaded::attr(data-preloaded)').get()
             if not preloaded_data:
-                self.logger.warning(f"未找到预加载数据: {response.url}")
+                self.logger.info(f"未找到预加载数据: {response.url}")
                 self.save_to_csv(title, '未获取到正文内容', '未获取到评论内容')
                 return
             
@@ -135,7 +135,7 @@ class DiscussionDetailedPageSpider(Spider):
                         continue
             
             if not topic_data:
-                self.logger.warning(f"未解析到topic数据: {response.url}")
+                self.logger.info(f"未解析到topic数据: {response.url}")
                 self.save_to_csv(title, '未获取到正文内容', '未获取到评论内容')
                 return
             

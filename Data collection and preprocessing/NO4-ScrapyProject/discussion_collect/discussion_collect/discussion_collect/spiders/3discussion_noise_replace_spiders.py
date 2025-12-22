@@ -26,7 +26,7 @@ class DiscussionNoiseSpider(Spider):
 
     def start_requests(self):
         """Scrapy入口：启动噪声识别与众数替换流程"""
-        self.logger.warning("===== 开始执行噪声数据识别与众数替换 =====")
+        self.logger.info("===== 开始执行噪声数据识别与众数替换 =====")
         
         # 1. 加载并预处理数据
         df = self.load_and_preprocess_data()
@@ -52,7 +52,7 @@ class DiscussionNoiseSpider(Spider):
         # 6. 保存处理后的数据
         self.save_processed_data(df_final)
         
-        self.logger.warning("\n===== 噪声数据处理完成 =====")
+        self.logger.info("\n===== 噪声数据处理完成 =====")
         return  # 无网络请求，直接返回
 
     def load_and_preprocess_data(self):
@@ -69,7 +69,7 @@ class DiscussionNoiseSpider(Spider):
                 encoding='utf-8-sig',
                 dtype=str  # 先统一读为字符串，避免类型错误
             )
-            self.logger.warning(f"成功读取Clean数据，共 {len(df)} 条记录，字段：{list(df.columns)}")
+            self.logger.info(f"成功读取Clean数据，共 {len(df)} 条记录，字段：{list(df.columns)}")
             
             # 检查目标字段是否存在
             all_target_fields = self.numeric_fields + self.categorical_fields
@@ -90,12 +90,12 @@ class DiscussionNoiseSpider(Spider):
         """处理数值型字段：IQR原则识别噪声，众数替换"""
         df_copy = df.copy()
         for field in self.numeric_fields:
-            self.logger.warning(f"\n----- 处理数值型字段：{field} -----")
+            self.logger.info(f"\n----- 处理数值型字段：{field} -----")
             
             # 步骤1：提取有效数值数据（过滤NaN）
             numeric_series = pd.to_numeric(df_copy[field], errors='coerce').dropna()
             if len(numeric_series) == 0:
-                self.logger.warning(f"字段「{field}」无有效数值，跳过噪声处理")
+                self.logger.info(f"字段「{field}」无有效数值，跳过噪声处理")
                 noise_stats['numeric'][field]['mode'] = np.nan
                 continue
             
@@ -105,12 +105,12 @@ class DiscussionNoiseSpider(Spider):
             iqr = q3 - q1
             lower_bound = q1 - self.iqr_outlier_threshold * iqr
             upper_bound = q3 + self.iqr_outlier_threshold * iqr
-            self.logger.warning(f"  IQR边界：[{lower_bound:.2f}, {upper_bound:.2f}]")
+            self.logger.info(f"  IQR边界：[{lower_bound:.2f}, {upper_bound:.2f}]")
             
             # 步骤3：计算众数（处理多众数，取第一个）
             mode_val = numeric_series.mode().iloc[0] if not numeric_series.mode().empty else 0
             noise_stats['numeric'][field]['mode'] = mode_val
-            self.logger.warning(f"  众数：{mode_val}")
+            self.logger.info(f"  众数：{mode_val}")
             
             # 步骤4：识别并替换噪声值
             def replace_numeric_noise(x):
@@ -126,7 +126,7 @@ class DiscussionNoiseSpider(Spider):
                     return np.nan  # 非数值保留NaN
             
             df_copy[field] = df_copy[field].apply(replace_numeric_noise)
-            self.logger.warning(f"  识别出噪声数据：{noise_stats['numeric'][field]['noise_count']} 条")
+            self.logger.info(f"  识别出噪声数据：{noise_stats['numeric'][field]['noise_count']} 条")
         
         return df_copy
 
@@ -134,12 +134,12 @@ class DiscussionNoiseSpider(Spider):
         """处理类别型字段：频率原则识别噪声，众数替换"""
         df_copy = df.copy()
         for field in self.categorical_fields:
-            self.logger.warning(f"\n----- 处理类别型字段：{field} -----")
+            self.logger.info(f"\n----- 处理类别型字段：{field} -----")
             
             # 步骤1：提取有效类别数据（过滤NaN）
             cat_series = df_copy[field].dropna()
             if len(cat_series) == 0:
-                self.logger.warning(f"字段「{field}」无有效类别，跳过噪声处理")
+                self.logger.info(f"字段「{field}」无有效类别，跳过噪声处理")
                 noise_stats['categorical'][field]['mode'] = np.nan
                 continue
             
@@ -147,12 +147,12 @@ class DiscussionNoiseSpider(Spider):
             total_valid = len(cat_series)
             freq_counter = Counter(cat_series)
             freq_dict = {k: v/total_valid for k, v in freq_counter.items()}
-            self.logger.warning(f"  高频类别前5：{dict(list(freq_dict.items())[:5])}")
+            self.logger.info(f"  高频类别前5：{dict(list(freq_dict.items())[:5])}")
             
             # 步骤3：计算众数（出现频率最高的类别）
             mode_val = max(freq_counter, key=freq_counter.get)
             noise_stats['categorical'][field]['mode'] = mode_val
-            self.logger.warning(f"  众数：{mode_val}（频率：{freq_dict[mode_val]:.2%}）")
+            self.logger.info(f"  众数：{mode_val}（频率：{freq_dict[mode_val]:.2%}）")
             
             # 步骤4：识别并替换噪声值（频率<threshold）
             def replace_categorical_noise(x):
@@ -164,7 +164,7 @@ class DiscussionNoiseSpider(Spider):
                 return x
             
             df_copy[field] = df_copy[field].apply(replace_categorical_noise)
-            self.logger.warning(f"  识别出噪声数据：{noise_stats['categorical'][field]['noise_count']} 条")
+            self.logger.info(f"  识别出噪声数据：{noise_stats['categorical'][field]['noise_count']} 条")
         
         # 将NaN还原为"未获取到信息"
         df_copy = df_copy.replace(np.nan, "未获取到信息")
@@ -172,19 +172,19 @@ class DiscussionNoiseSpider(Spider):
 
     def print_noise_stats(self, noise_stats):
         """打印噪声处理统计结果"""
-        self.logger.warning("\n===== 噪声数据处理统计 ======")
+        self.logger.info("\n===== 噪声数据处理统计 ======")
         # 数值型字段统计
-        self.logger.warning("【数值型字段（IQR原则）】")
+        self.logger.info("【数值型字段（IQR原则）】")
         for field, stats in noise_stats['numeric'].items():
             mode = stats['mode']
             mode_str = f"{mode:.2f}" if isinstance(mode, (int, float)) else "无"
-            self.logger.warning(f"  {field}：噪声数={stats['noise_count']}，替换众数={mode_str}")
+            self.logger.info(f"  {field}：噪声数={stats['noise_count']}，替换众数={mode_str}")
         
         # 类别型字段统计
-        self.logger.warning("【类别型字段（频率原则）】")
+        self.logger.info("【类别型字段（频率原则）】")
         for field, stats in noise_stats['categorical'].items():
             mode_str = stats['mode'] if pd.notna(stats['mode']) else "无"
-            self.logger.warning(f"  {field}：噪声数={stats['noise_count']}，替换众数={mode_str}")
+            self.logger.info(f"  {field}：噪声数={stats['noise_count']}，替换众数={mode_str}")
 
     def save_processed_data(self, df):
         """保存噪声替换后的数据"""
@@ -194,6 +194,6 @@ class DiscussionNoiseSpider(Spider):
                 index=False,
                 encoding='utf-8-sig'
             )
-            self.logger.warning(f"\n噪声处理后的数据已保存至：{os.path.abspath(self.output_csv_path)}")
+            self.logger.info(f"\n噪声处理后的数据已保存至：{os.path.abspath(self.output_csv_path)}")
         except Exception as e:
             self.logger.error(f"保存数据失败：{str(e)}")

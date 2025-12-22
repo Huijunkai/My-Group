@@ -60,11 +60,11 @@ class DiscussionSpider(Spider):
         for dir_path in [self.csv_dir, self.avatar_dir]:
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
-                self.logger.warning(f'创建文件夹成功：{dir_path}')  # 用WARNING级别确保显示
+                self.logger.info(f'创建文件夹成功：{dir_path}')  # 用WARNING级别确保显示
         
         # 初始化线程池
         self.thread_pool = ThreadPoolExecutor(max_workers=self.max_threads)
-        self.logger.warning(f'初始化线程池，最大线程数：{self.max_threads}')  # 用WARNING级别确保显示
+        self.logger.info(f'初始化线程池，最大线程数：{self.max_threads}')  # 用WARNING级别确保显示
 
         # 初始化tqdm进度条（和上一个爬虫样式一致）
         self.data_pbar = tqdm(
@@ -153,7 +153,7 @@ class DiscussionSpider(Spider):
             return filepath
         except Exception as e:
             # 仅输出关键错误（WARNING级别，避免干扰）
-            self.logger.warning(f'头像下载失败 | 作者：{author_name} | 错误：{str(e)[:100]}')
+            self.logger.info(f'头像下载失败 | 作者：{author_name} | 错误：{str(e)[:100]}')
             self.update_progress()
             return None
 
@@ -322,13 +322,13 @@ class DiscussionSpider(Spider):
         avatar_success_rate = (avatar_success / avatar_total * 100) if avatar_total > 0 else 0
 
         # 最终统一输出统计信息（WARNING级别确保显示）
-        self.logger.warning('\n' + '='*70)
-        self.logger.warning(f'最终数据统计：')
-        self.logger.warning(f'目标数据量：{self.target_count} | 实际爬取数据量：{data_total}')
-        self.logger.warning(f'最终头像统计：')
-        self.logger.warning(f'总下载任务数：{avatar_total} | 成功下载数：{avatar_success} | 失败下载数：{avatar_fail}')
-        self.logger.warning(f'头像下载成功率：{avatar_success_rate:.1f}%')
-        self.logger.warning('='*70)
+        self.logger.info('\n' + '='*70)
+        self.logger.info(f'最终数据统计：')
+        self.logger.info(f'目标数据量：{self.target_count} | 实际爬取数据量：{data_total}')
+        self.logger.info(f'最终头像统计：')
+        self.logger.info(f'总下载任务数：{avatar_total} | 成功下载数：{avatar_success} | 失败下载数：{avatar_fail}')
+        self.logger.info(f'头像下载成功率：{avatar_success_rate:.1f}%')
+        self.logger.info('='*70)
 
         # 处理最终数据并保存
         final_data = self.all_data[:self.target_count]
@@ -349,8 +349,8 @@ class DiscussionSpider(Spider):
                 writer.writeheader()
                 writer.writerows(final_data)
             
-            self.logger.warning(f'文件保存路径：')
-            self.logger.warning(f'CSV文件：{os.path.abspath(save_path)}')
-            self.logger.warning(f'头像文件夹：{os.path.abspath(self.avatar_dir)}')
+            self.logger.info(f'文件保存路径：')
+            self.logger.info(f'CSV文件：{os.path.abspath(save_path)}')
+            self.logger.info(f'头像文件夹：{os.path.abspath(self.avatar_dir)}')
         except Exception as e:
             self.logger.error(f'保存CSV失败：{str(e)[:50]}', exc_info=False)

@@ -19,9 +19,9 @@ class DiscussionManageSpider(Spider):
     
     def start_requests(self):
         """启动数据分箱处理流程"""
-        self.logger.warning("开始处理数值型字段的等宽分箱...")
+        self.logger.info("开始处理数值型字段的等宽分箱...")
         self.process_binning()
-        self.logger.warning("数值分箱处理完成")
+        self.logger.info("数值分箱处理完成")
         return  # 不发起网络请求
     
     def process_binning(self):
@@ -40,23 +40,23 @@ class DiscussionManageSpider(Spider):
                     self.logger.error(f"CSV中未找到「{field}」字段，请检查字段名！")
                     return
             
-            self.logger.warning(f"成功读取数据，共 {len(df)} 条记录")
+            self.logger.info(f"成功读取数据，共 {len(df)} 条记录")
         except Exception as e:
             self.logger.error(f"读取CSV文件失败: {str(e)}")
             return
         
         # 对每个目标字段进行分箱处理
         for field in self.target_fields:
-            self.logger.warning(f"\n===== 开始处理「{field}」字段 =====")
+            self.logger.info(f"\n===== 开始处理「{field}」字段 =====")
             # 提取并清洗数值数据（过滤非数值和异常值）
             raw_data = df[field].replace('未获取到信息', np.nan)
             numeric_data = pd.to_numeric(raw_data, errors='coerce').dropna().astype(int)
             
             if len(numeric_data) == 0:
-                self.logger.warning(f"「{field}」字段无有效数值数据，跳过处理")
+                self.logger.info(f"「{field}」字段无有效数值数据，跳过处理")
                 continue
             
-            self.logger.warning(f"有效数值数据量: {len(numeric_data)}")
+            self.logger.info(f"有效数值数据量: {len(numeric_data)}")
             self.perform_equal_width_binning(numeric_data.values, field)
     
     def perform_equal_width_binning(self, data, field_name):

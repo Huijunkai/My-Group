@@ -37,9 +37,9 @@ class DiscussionSpider(Spider):
 
     def start_requests(self):
         """启动数据清洗流程"""
-        self.logger.warning("开始数据预处理...")
+        self.logger.info("开始数据预处理...")
         self.clean_csv_data()
-        self.logger.warning("数据预处理完成")
+        self.logger.info("数据预处理完成")
         return  # 不发起网络请求
     
     # ===== 新增：特殊字符过滤函数 =====
@@ -115,7 +115,7 @@ class DiscussionSpider(Spider):
                 continue
         
         # 所有格式都匹配失败（保留日志提示）
-        self.logger.warning(f"日期格式解析失败，原始值：{date_str}")
+        self.logger.info(f"日期格式解析失败，原始值：{date_str}")
         return "未获取到信息"
     
     # ===== 新增：数值清洗与转换辅助函数 =====
@@ -140,7 +140,7 @@ class DiscussionSpider(Spider):
         # 清洗数值字符串
         cleaned_val = self.clean_numeric_string(value)
         if not cleaned_val:
-            self.logger.warning(f"数值清洗失败，原始值：{value} → 设为默认值")
+            self.logger.info(f"数值清洗失败，原始值：{value} → 设为默认值")
             return 0 if target_type == int else 0.0
         
         # 尝试转换类型
@@ -148,7 +148,7 @@ class DiscussionSpider(Spider):
             converted = target_type(cleaned_val)
             return converted
         except (ValueError, TypeError):
-            self.logger.warning(f"数值转换失败（{target_type.__name__}），原始值：{value} → 设为默认值")
+            self.logger.info(f"数值转换失败（{target_type.__name__}），原始值：{value} → 设为默认值")
             return 0 if target_type == int else 0.0
 
     def clean_csv_data(self):
@@ -176,7 +176,7 @@ class DiscussionSpider(Spider):
                     self.logger.error(f"CSV中缺失数值字段：{missing_numeric_fields}")
                     return
                 data = list(reader)
-            self.logger.warning(f"成功读取原始数据，共 {len(data)} 条记录")
+            self.logger.info(f"成功读取原始数据，共 {len(data)} 条记录")
         except Exception as e:
             self.logger.error(f"读取CSV文件失败: {str(e)}")
             return
@@ -252,16 +252,16 @@ class DiscussionSpider(Spider):
         
         # 统计输出
         duplicate_count = len(cleaned_data) - len(unique_data)
-        self.logger.warning(f"空值处理完成，共替换 {null_replace_count} 处空值（已标注为未获取到信息）")
-        self.logger.warning(f"日期格式转换完成，共 {date_convert_fail_count} 条记录转换失败(已从英语转换为中文格式)")
+        self.logger.info(f"空值处理完成，共替换 {null_replace_count} 处空值（已标注为未获取到信息）")
+        self.logger.info(f"日期格式转换完成，共 {date_convert_fail_count} 条记录转换失败(已从英语转换为中文格式)")
         # 新增：特殊字符过滤统计
-        self.logger.warning(f"特殊字符过滤完成，共处理 {self.special_char_remove_count} 条包含特殊字符的记录（已过滤@#$%^&*等特殊字符）")
+        self.logger.info(f"特殊字符过滤完成，共处理 {self.special_char_remove_count} 条包含特殊字符的记录（已过滤@#$%^&*等特殊字符）")
         # 数值转换统计
         for field, stats in numeric_convert_stats.items():
             total = stats['success'] + stats['fail']
-            self.logger.warning(f"【{field}】数值转换完成：成功 {stats['success']} 条，失败 {stats['fail']} 条（总计 {total} 条）")
-        self.logger.warning(f"重复值处理完成，共移除 {duplicate_count} 条重复记录")
-        self.logger.warning(f"清洗后剩余 {len(unique_data)} 条有效记录")
+            self.logger.info(f"【{field}】数值转换完成：成功 {stats['success']} 条，失败 {stats['fail']} 条（总计 {total} 条）")
+        self.logger.info(f"重复值处理完成，共移除 {duplicate_count} 条重复记录")
+        self.logger.info(f"清洗后剩余 {len(unique_data)} 条有效记录")
         
         # 保存清洗后的数据
         try:
@@ -269,6 +269,6 @@ class DiscussionSpider(Spider):
                 writer = csv.DictWriter(f, fieldnames=headers)
                 writer.writeheader()
                 writer.writerows(unique_data)
-            self.logger.warning(f"清洗后的数据已保存至: {os.path.abspath(self.output_csv_path)}")
+            self.logger.info(f"清洗后的数据已保存至: {os.path.abspath(self.output_csv_path)}")
         except Exception as e:
             self.logger.error(f"保存清洗后的数据失败: {str(e)}")

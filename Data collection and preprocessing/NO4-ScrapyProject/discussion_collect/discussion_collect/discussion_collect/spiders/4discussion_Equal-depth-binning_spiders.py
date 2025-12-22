@@ -24,7 +24,7 @@ class DiscussionSpider(Spider):
 
     def start_requests(self):
         """Scrapy入口：启动等深分箱处理流程"""
-        self.logger.warning("===== 开始执行等深分箱处理 =====")
+        self.logger.info("===== 开始执行等深分箱处理 =====")
         
         # 1. 加载并预处理Clean后的数值数据
         field_data_dict = self.load_and_preprocess_data()
@@ -34,15 +34,15 @@ class DiscussionSpider(Spider):
         
         # 2. 对每个字段执行等深分箱+平滑处理
         for field_name, numeric_data in field_data_dict.items():
-            self.logger.warning(f"\n----- 处理字段：{field_name} -----")
+            self.logger.info(f"\n----- 处理字段：{field_name} -----")
             if len(numeric_data) == 0:
-                self.logger.warning(f"字段「{field_name}」无有效数值数据，跳过")
+                self.logger.info(f"字段「{field_name}」无有效数值数据，跳过")
                 continue
             
             # 执行等深分箱核心逻辑
             self.perform_equal_depth_binning(numeric_data, field_name)
         
-        self.logger.warning("\n===== 等深分箱处理全部完成 =====")
+        self.logger.info("\n===== 等深分箱处理全部完成 =====")
         return  # 无网络请求，直接返回
 
     def load_and_preprocess_data(self):
@@ -59,7 +59,7 @@ class DiscussionSpider(Spider):
                 encoding='utf-8-sig',
                 dtype=str  # 先读为字符串，避免自动类型错误
             )
-            self.logger.warning(f"成功读取Clean数据，共 {len(df)} 条记录")
+            self.logger.info(f"成功读取Clean数据，共 {len(df)} 条记录")
             
             # 检查目标字段是否存在
             missing_fields = [f for f in self.target_fields if f not in df.columns]
@@ -75,7 +75,7 @@ class DiscussionSpider(Spider):
                 numeric_series = pd.to_numeric(clean_series, errors='coerce').dropna()
                 field_data = numeric_series.values.astype(float)  # 统一转为float避免类型问题
                 field_data_dict[field] = field_data
-                self.logger.warning(f"字段「{field}」有效数值量：{len(field_data)}")
+                self.logger.info(f"字段「{field}」有效数值量：{len(field_data)}")
             
             return field_data_dict
         
@@ -100,7 +100,7 @@ class DiscussionSpider(Spider):
         
         # 步骤3：等深分箱（按深度拆分）
         depth_bins = padded_data.reshape(bin_count, self.bin_depth)
-        self.logger.warning(f"等深分箱完成，分箱数：{bin_count}，每个分箱样本数：{self.bin_depth}")
+        self.logger.info(f"等深分箱完成，分箱数：{bin_count}，每个分箱样本数：{self.bin_depth}")
         
         # 打印原始等深分箱结果
         print(f"\n【{field_name} - 等深分箱原始结果】")
@@ -142,8 +142,8 @@ class DiscussionSpider(Spider):
         print(edge_depth)
 
         # 补充分箱统计日志
-        self.logger.warning(f"字段「{field_name}」分箱统计：")
-        self.logger.warning(f"  - 原始数据量：{len(data)}")
-        self.logger.warning(f"  - 补齐后数据量：{len(padded_data)}")
-        self.logger.warning(f"  - 分箱数量：{bin_count}")
-        self.logger.warning(f"  - 每个分箱样本数：{self.bin_depth}")
+        self.logger.info(f"字段「{field_name}」分箱统计：")
+        self.logger.info(f"  - 原始数据量：{len(data)}")
+        self.logger.info(f"  - 补齐后数据量：{len(padded_data)}")
+        self.logger.info(f"  - 分箱数量：{bin_count}")
+        self.logger.info(f"  - 每个分箱样本数：{self.bin_depth}")
