@@ -1,10 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const { login } = require('./src/api/auth');
-const { getStudentInfo, getTimetable, getGrades, getExamSchedule, getSemesterPlan, getStudyProgress } = require('./src/api/student');
+const { getStudentInfo, getTimetable, getGrades, getExamSchedule } = require('./src/api/student');
 const { initDatabase } = require('./src/db');
-const { syncStudent, syncCourses, syncGrades, syncExams, syncPlans, syncProgress } = require('./src/db/sync');
-const { Student, Course, Grade, Exam, Plan, Progress } = require('./src/db/models');
+const { syncStudent, syncCourses, syncGrades, syncExams } = require('./src/db/sync');
+const { Student, Course, Grade, Exam } = require('./src/db/models');
 
 const app = express();
 app.use(cors());
@@ -54,13 +54,21 @@ app.post('/api/sync', async (req, res) => {
             await syncStudent(username, info);
             
             // 后台静默同步其他数据
-            Promise.all([
-                getTimetable(cookies).then(data => data && syncCourses(username, data)),
-                getGrades(cookies).then(data => data && syncGrades(username, data)),
-                getExamSchedule(cookies).then(data => data && syncExams(username, data)),
-                getSemesterPlan(cookies).then(data => data && syncPlans(username, data)),
-                getStudyProgress(cookies).then(data => data && syncProgress(username, data))
-            ]).catch(err => console.error('Background sync error:', err));
+            // 注意：这里不使用 await，让它在后台运行
+            // 如果需要确保所有数据都同步完再返回，可以在这里加 await
+            // 但考虑到爬虫速度，建议先返回基本信息，其他让前端轮询或者下次进入时获取
+            
+            // 为了防止 Promise.all 抛出未捕获异常导致进程崩溃，这里单独处理每个 Promise
+            const syncTasks = [
+                getTimetable(cookies).then(data => data && syncCourses(username, data)).catch(e => console.error('Sync courses failed:', e)),
+                getGrades(cookies).then(data => data && syncGrades(username, data)).catch(e => console.error('Sync grades failed:', e)),
+                getExamSchedule(cookies).then(data => data && syncExams(username, data)).catch(e => console.error('Sync exams failed:', e)),
+                getSemesterPlan(cookies).then(data => data && syncPlans(username, data)).catch(e => console.error('Sync plans failed:', e)),
+                getStudyProgress(cookies).then(data => data && syncProgress(username, data)).catch(e => console.error('Sync progress failed:', e))
+            ];
+            
+            // 触发任务但不等待
+            Promise.all(syncTasks).then(() => console.log(`后台同步完成: ${username}`));
 
             return res.json({
                 success: true,
@@ -72,7 +80,8 @@ app.post('/api/sync', async (req, res) => {
         }
     } catch (error) {
         console.error('Sync error:', error);
-        res.status(500).json({ success: false, message: '服务器内部错误' });
+        // 确保返回具体的错误信息以便调试
+        res.status(500).json({ success: false, message: '服务器内部错误: ' + error.message });
     }
 });
 
