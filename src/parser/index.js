@@ -73,36 +73,16 @@ function parseTimetable(html) {
                     
                     // 提取时间/周次那一行原文
                     const weekStr = timeLineIndex !== -1 ? (lines[timeLineIndex] || '') : '';
+                    const timeLine = (weekStr || '').replace(/\s+/g, '');
                     
-                    // 优化匹配逻辑：优先匹配带"周"字的，如果没有则尝试匹配纯数字范围（通常在方括号内）
-                    // 强智系统常见格式：
-                    // 1. [1-16周]
-                    // 2. [1-16周](单)
-                    // 3. 1-16周
-                    
-                    // 提取方括号内的内容作为周次依据
-                    const bracketMatch = weekStr.match(/\[(.*?)\]/);
-                    let weekContent = (bracketMatch ? bracketMatch[1] : weekStr).trim();
-                    
-                    // 清洗 weekContent：去掉节次/多余符号，只保留周次描述
-                    // 例如：[1-16周]01-02节 -> weekContent = "1-16周"
-                    weekContent = weekContent
-                        .replace(/\s+/g, '')
-                        .replace(/(\d+)-(\d+)节/g, '')
-                        .replace(/(\d+)-(\d+)$/g, '');
-
-                    // 单/双周标记可能在方括号外（如 [1-16周](单)）
-                    const oddEvenMatch = weekStr.match(/\((单|双)\)/);
-                    if (oddEvenMatch) {
-                        weekContent = `${weekContent}(${oddEvenMatch[1]})`;
-                    } else if (weekStr.includes('单') && !weekContent.includes('单')) {
-                        weekContent = `${weekContent}(单)`;
-                    } else if (weekStr.includes('双') && !weekContent.includes('双')) {
-                        weekContent = `${weekContent}(双)`;
-                    }
-
                     // 解析节次信息
                     let periodStr = '';
+                    // 优先：节次用中括号括起来
+                    const periodBracketMatch = timeLine.match(/\[(\d{1,2})-(\d{1,2})节\]/);
+                    if (periodBracketMatch) {
+                        // 保留前导 0（如 01-02）
+                        periodStr = `${periodBracketMatch[1]}-${periodBracketMatch[2]}节`;
+                    }
                     
                     // 节次通常带有 "节" 字，或者在周次信息之后
                     // 匹配 "数字-数字节"
@@ -120,17 +100,75 @@ function parseTimetable(html) {
                              const s = parseInt(numMatch[1]);
                              const e = parseInt(numMatch[2]);
                              if (s <= 14 && e <= 14) {
-                                 periodStr = `${s}-${e}节`;
+                                 // 原始可能带前导 0，这里直接使用匹配文本
+                                 periodStr = `${numMatch[1]}-${numMatch[2]}节`;
                              }
                         }
                     }
+
+                    // 解析周次信息（保证 weeks 不含节次）
+                    // 常见格式：
+                    // - [1-16周](单) + [01-02节]
+                    // - 6(全部)[01-02节]   （周次不带“周”字）
+                    // - [1-8,10-16周](双)01-02
+                    let weeksOnlySource = timeLine;
+                    if (periodBracketMatch) {
+                        weeksOnlySource = weeksOnlySource.replace(periodBracketMatch[0], '');
+                    }
+                    // 去掉纯数字节次（无“节”字）的情况：01-02 / 1-2
+                    if (periodStr) {
+                        const p = periodStr.replace('节', '');
+                        weeksOnlySource = weeksOnlySource.replace(p, '');
+                    }
+
+                    // 解析周次：只保留简单的分隔（数字/逗号/短横线），不要单双周等标记
+                    // 输出示例：
+                    // - "1-16"
+                    // - "1-8,10-16"
+                    // - "6"
+                    const normalizeWeeks = (input) => {
+                        if (!input) return '';
+                        let s = String(input).replace(/\s+/g, '');
+                        // 中文括号统一
+                        s = s.replace(/（/g, '(').replace(/）/g, ')');
+                        // 统一分隔符：中文逗号/顿号 -> 逗号；各种连接符 -> 短横线
+                        s = s.replace(/[，、]/g, ',');
+                        s = s.replace(/[～—–－]/g, '-');
+                        s = s.replace(/至/g, '-');
+                        // 去掉节次残留
+                        s = s.replace(/\[?\d{1,2}-\d{1,2}节\]?/g, '');
+                        // 去掉“周”字
+                        s = s.replace(/周/g, '');
+                        // 去掉括号内描述：保留“全部”（不保留括号），移除 (单)/(双) 等
+                        let hasAll = false;
+                        s = s.replace(/\((.*?)\)/g, (_m, inner) => {
+                            if (String(inner).includes('全部')) {
+                                hasAll = true;
+                                return '全部';
+                            }
+                            return '';
+                        });
+                        // 去掉其他文本标记（不需要单双周）
+                        s = s.replace(/第/g, '').replace(/单/g, '').replace(/双/g, '');
+                        // 提取数字范围串
+                        const m = s.match(/[0-9]{1,2}(?:-[0-9]{1,2})?(?:,[0-9]{1,2}(?:-[0-9]{1,2})?)*/);
+                        if (m && m[0]) return m[0] + (hasAll ? '全部' : '');
+                        if (hasAll) return '全部';
+                        // 兜底：保留数字/逗号/短横线 + (全部)
+                        const fallback = s.replace(/[^0-9,\-全都部,]/g, '');
+                        return fallback;
+                    };
+
+                    // 规则：节次在中括号里，剩余部分就是周次
+                    // 例如：9-11,13(全部)[01-02节] -> weeks=9-11,13(全部)
+                    const weekContent = normalizeWeeks(weeksOnlySource);
 
                     courses.push({
                         semester: semester,
                         dayOfWeek: dayOfWeek,
                         name: lines[0], // 第一行通常是课程名
                         teacher: lines[1], // 第二行通常是老师
-                        weeks: weekContent, // 仅保留周次信息（必要时附带单/双周标记）
+                        weeks: weekContent, // 仅保留周次信息：纯数字/逗号/短横线
                         period: periodStr,  // 节次信息
                         // 地点通常在“节”那一行的下一行
                         location: timeLineIndex !== -1 && lines[timeLineIndex + 1] ? lines[timeLineIndex + 1] : (lines[3] || '未知'),

@@ -45,14 +45,62 @@ async function syncCourses(studentId, courses) {
  */
 async function syncGrades(studentId, gradesGrouped) {
     if (!studentId || !gradesGrouped) return;
-    
+
+    // 将成绩字符串转换为可比较的数值（用于保留最高分）
+    const scoreToNumber = (score) => {
+        if (score === null || score === undefined) return -1;
+        const s = String(score).trim();
+        const n = parseFloat(s);
+        if (!Number.isNaN(n)) return n;
+
+        // 常见等级制映射（可按学校规则微调）
+        const map = {
+            '优秀': 95,
+            '良好': 85,
+            '中等': 75,
+            '及格': 65,
+            '合格': 60,
+            '通过': 60,
+            '不及格': 0,
+            '未通过': 0,
+            '缺考': -1,
+            '缓考': -1
+        };
+        for (const key of Object.keys(map)) {
+            if (s.includes(key)) return map[key];
+        }
+        return -1;
+    };
+
     for (const semester in gradesGrouped) {
         for (const grade of gradesGrouped[semester]) {
-            await Grade.upsert({
-                studentId,
-                semester,
-                ...grade
-            });
+            if (!grade || !grade.courseCode) continue;
+
+            const where = { studentId, semester, courseCode: grade.courseCode };
+            const existing = await Grade.findOne({ where });
+
+            if (!existing) {
+                await Grade.create({
+                    studentId,
+                    semester,
+                    ...grade
+                });
+                continue;
+            }
+
+            // 同一学期同一课程编号（补考/重修会重复出现）——只保留最高成绩
+            const oldScore = scoreToNumber(existing.score);
+            const newScore = scoreToNumber(grade.score);
+            if (newScore > oldScore) {
+                await existing.update({
+                    courseName: grade.courseName,
+                    score: grade.score,
+                    credit: grade.credit,
+                    gradePoint: grade.gradePoint,
+                    courseType: grade.courseType,
+                    examType: grade.examType
+                });
+            }
         }
     }
 }
