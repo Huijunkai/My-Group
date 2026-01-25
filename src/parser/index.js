@@ -76,7 +76,8 @@ function parseTimetable(html) {
         s = s.replace(/[，、]/g, ',');
         s = s.replace(/[～—–－]/g, '-');
         s = s.replace(/至/g, '-');
-        s = s.replace(/\[?\d{1,2}-\d{1,2}节\]?/g, '');
+        // 去掉节次残留：支持 01-02节 / 05-06-07节 / 09-10-11-12节
+        s = s.replace(/\[?\d{1,2}(?:-\d{1,2})+节\]?/g, '');
         s = s.replace(/周/g, '');
         let hasAll = false;
         s = s.replace(/\((.*?)\)/g, (_m, inner) => {
@@ -163,7 +164,9 @@ function parseTimetable(html) {
             const name = String(titleLine).replace(/\[.*?\]/g, '').trim() || titleLine.trim();
 
             // 找到“包含节次”的那一行作为时间行
-            let timeLineIndex = chunkLines.findIndex(l => /\[\d{1,2}-\d{1,2}节\]/.test(l) || /(\d{1,2})-(\d{1,2})节/.test(l));
+            let timeLineIndex = chunkLines.findIndex(l =>
+                /\[\d{1,2}(?:-\d{1,2})+节\]/.test(l) || /(\d{1,2})(?:-(\d{1,2}))+节/.test(l)
+            );
             if (timeLineIndex === -1) {
                 // 兜底：存在但格式不含“节]”
                 timeLineIndex = chunkLines.findIndex(l => (l.includes('周') || l.includes('节') || (l.includes('[') && l.includes(']'))));
@@ -173,19 +176,27 @@ function parseTimetable(html) {
 
             // 节次
             let periodStr = '';
-            const periodBracketMatch = timeLine.match(/\[(\d{1,2})-(\d{1,2})节\]/);
+            // periodToken：用于从周次字符串里剔除节次（必须用原始 token，否则 05-06-07 会剔不干净）
+            let periodToken = '';
+            const periodBracketMatch = timeLine.match(/\[(\d{1,2})(?:-(\d{1,2}))+节\]/);
             if (periodBracketMatch) {
+                periodToken = periodBracketMatch[0]; // 例如 "[05-06-07节]"
+                // 注意：重复捕获组在 JS 中只保留“最后一次捕获”，所以 [2] 就是最后一节
                 periodStr = `${periodBracketMatch[1]}-${periodBracketMatch[2]}节`;
             }
-            const periodMatch = weekStr.match(/(\d{1,2})-(\d{1,2})节/);
+            const periodMatch = weekStr.match(/(\d{1,2})(?:-(\d{1,2}))+节/);
             if (periodMatch) {
-                periodStr = periodMatch[0];
+                periodToken = periodToken || periodMatch[0]; // 例如 "05-06-07节"
+                periodStr = `${periodMatch[1]}-${periodMatch[2]}节`;
             }
 
             // 周次（剔除节次残留）
             let weeksOnlySource = timeLine;
-            if (periodBracketMatch) weeksOnlySource = weeksOnlySource.replace(periodBracketMatch[0], '');
-            if (periodStr) weeksOnlySource = weeksOnlySource.replace(periodStr.replace('节', ''), '');
+            if (periodToken) weeksOnlySource = weeksOnlySource.replace(periodToken, '');
+            // 再兜底剔除一次“范围形式”的节次（例如 periodStr=05-07节 / timeLine=...05-06-07节...）
+            if (periodStr) {
+                weeksOnlySource = weeksOnlySource.replace(periodStr, '').replace(periodStr.replace('节', ''), '');
+            }
             const weekExpr = normalizeWeeks(weeksOnlySource);
             const weekList = parseWeekList(weekExpr);
 

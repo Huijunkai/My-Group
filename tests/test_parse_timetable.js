@@ -21,6 +21,10 @@ function main() {
   assert(hasWeek1, '应包含 第1周 星期一 01-02节 的课程');
   assert(hasWeek9, '应包含 第9周 星期一 01-02节 的课程');
 
+  // 多小节：05-06-07节 应被解析为 05-07节（起始-结束）
+  const hasWeek4Long = courses.some(c => c.week === 4 && c.dayOfWeek === '星期一' && c.name === '安全教育5' && c.period === '05-07节');
+  assert(hasWeek4Long, '应包含 第4周 星期一 安全教育5 的 05-07节（由 [05-06-07节] 归一化）');
+
   // 简单打印前几条
   console.log('前3条示例:');
   console.log(courses.slice(0, 3));
