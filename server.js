@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const { login } = require('./src/api/auth');
 const { getStudentInfo, getTimetable, getGrades, getExamSchedule } = require('./src/api/student');
 const { initDatabase } = require('./src/db');
@@ -6,6 +7,7 @@ const { syncStudent, syncCourses, syncGrades, syncExams } = require('./src/db/sy
 const { Student, Course, Grade, Exam } = require('./src/db/models');
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 // 端口配置，Railway 会自动注入 PORT 环境变量
