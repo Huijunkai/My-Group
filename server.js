@@ -105,11 +105,46 @@ app.get('/api/student/:id', async (req, res) => {
 
         // 查询关联数据
         const [courses, grades, exams, plans, progress] = await Promise.all([
-            Course.findAll({ where: { studentId } }),
-            Grade.findAll({ where: { studentId } }),
-            Exam.findAll({ where: { studentId } }),
-            Plan.findAll({ where: { studentId } }),
-            Progress.findAll({ where: { studentId } })
+            // 课表：按学期 -> 周次 -> 星期 -> 节次排序
+            Course.findAll({
+                where: { studentId },
+                order: [
+                    ['semester', 'ASC'],
+                    ['week', 'ASC'],
+                    ['dayOfWeek', 'ASC'],
+                    ['period', 'ASC'],
+                    ['name', 'ASC']
+                ]
+            }),
+            // 成绩：按学期 -> 课程编号排序
+            Grade.findAll({
+                where: { studentId },
+                order: [
+                    ['semester', 'ASC'],
+                    ['courseCode', 'ASC']
+                ]
+            }),
+            // 考试：按时间 -> 课程名排序
+            Exam.findAll({
+                where: { studentId },
+                order: [
+                    ['examTime', 'ASC'],
+                    ['courseName', 'ASC']
+                ]
+            }),
+            // 学期计划：按学期 -> 课程编号排序
+            Plan.findAll({
+                where: { studentId },
+                order: [
+                    ['semester', 'ASC'],
+                    ['courseCode', 'ASC']
+                ]
+            }),
+            // 学习完成情况：按分类名排序
+            Progress.findAll({
+                where: { studentId },
+                order: [['category', 'ASC']]
+            })
         ]);
 
         res.json({
@@ -123,6 +158,21 @@ app.get('/api/student/:id', async (req, res) => {
                 progress
             }
         });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * 学生列表（按学号升序）
+ * GET /api/students
+ */
+app.get('/api/students', async (_req, res) => {
+    try {
+        const students = await Student.findAll({
+            order: [['studentId', 'ASC']]
+        });
+        res.json({ success: true, data: students });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

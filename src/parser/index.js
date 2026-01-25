@@ -43,183 +43,191 @@ function parseTimetable(html) {
     const $ = cheerio.load(html);
     const courses = [];
 
-    let semester = $('#xnxqh option[selected]').text().trim() || 
-                   $('.Nsb_right_title_sj').text().trim() || 
-                   $('option[selected]').first().text().trim() || 
-                   '未知学期';
+    // 学期字段在不同学校/版本里 id 不一致：常见是 xnxq01id / xnxqh
+    // 兜底：取页面第一个 selected 的 option（一般就是学年学期下拉的选中项）
+    let semester =
+        $('#xnxq01id option:selected').first().text().trim() ||
+        $('#xnxqh option:selected').first().text().trim() ||
+        $('.Nsb_right_title_sj').text().trim() ||
+        $('option[selected]').first().text().trim() ||
+        '未知学期';
     
     const $table = $('#kbtable');
-    
-    $table.find('td div.kbcontent').each((i, el) => {
-        const content = $(el).html();
-        if (content && content.trim() && content !== '&nbsp;') {
-            const parts = content.split('---------------------');
-            
-            // 通过单元格在行中的索引来确定星期几
-            // 索引 1 是周一，2 是周二...
-            const columnIndex = $(el).closest('td').index();
-            const weekDays = ['', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
-            const dayOfWeek = weekDays[columnIndex] || '未知';
 
-            parts.forEach(part => {
-                const lines = part.split('<br>').map(line => cheerio.load(line).text().trim()).filter(line => line);
-                if (lines.length >= 3) {
-                    // 强智系统特征：包含 [xx-xx节] 的那一行一定是时间/周次信息
-                    let timeLineIndex = lines.findIndex(l => l.includes('[') && l.includes('节]'));
-                    if (timeLineIndex === -1) {
-                        // 兜底：有些页面不含 "节]"，但仍会在同一行包含周次/节次信息
-                        timeLineIndex = lines.findIndex(l => (l.includes('周') || l.includes('节') || (l.includes('[') && l.includes(']'))));
-                    }
-                    
-                    // 提取时间/周次那一行原文
-                    const weekStr = timeLineIndex !== -1 ? (lines[timeLineIndex] || '') : '';
-                    const timeLine = (weekStr || '').replace(/\s+/g, '');
-                    
-                    // 解析节次信息
-                    let periodStr = '';
-                    // 优先：节次用中括号括起来
-                    const periodBracketMatch = timeLine.match(/\[(\d{1,2})-(\d{1,2})节\]/);
-                    if (periodBracketMatch) {
-                        // 保留前导 0（如 01-02）
-                        periodStr = `${periodBracketMatch[1]}-${periodBracketMatch[2]}节`;
-                    }
-                    
-                    // 节次通常带有 "节" 字，或者在周次信息之后
-                    // 匹配 "数字-数字节"
-                    const periodMatch = weekStr.match(/(\d+)-(\d+)节/);
-                    if (periodMatch) {
-                        periodStr = periodMatch[0];
-                    } else {
-                        // 如果没有 "节" 字，尝试查找周次之后的数字对
-                        // 例如：[1-16周]01-02
-                        // 先去掉周次部分
-                        const contentAfterWeek = weekStr.replace(/\[.*?\]|.*?周/g, '');
-                        const numMatch = contentAfterWeek.match(/(\d+)-(\d+)/);
-                        if (numMatch) {
-                             // 简单的启发式：节次通常小于 14
-                             const s = parseInt(numMatch[1]);
-                             const e = parseInt(numMatch[2]);
-                             if (s <= 14 && e <= 14) {
-                                 // 原始可能带前导 0，这里直接使用匹配文本
-                                 periodStr = `${numMatch[1]}-${numMatch[2]}节`;
-                             }
-                        }
-                    }
+    // 解析工具：把 div 内 HTML 变成“带换行”的纯文本行
+    const htmlToLines = (innerHtml) => {
+        if (!innerHtml) return [];
+        const withNewlines = String(innerHtml)
+            // 关键：强智系统大量使用 <br/>，不能只 split("<br>")
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/&nbsp;/gi, ' ');
+        const text = cheerio.load(`<div>${withNewlines}</div>`).text();
+        return text
+            .split('\n')
+            .map(s => String(s).trim())
+            .filter(Boolean);
+    };
 
-                    // 解析周次信息（保证 weeks 不含节次）
-                    // 常见格式：
-                    // - [1-16周](单) + [01-02节]
-                    // - 6(全部)[01-02节]   （周次不带“周”字）
-                    // - [1-8,10-16周](双)01-02
-                    let weeksOnlySource = timeLine;
-                    if (periodBracketMatch) {
-                        weeksOnlySource = weeksOnlySource.replace(periodBracketMatch[0], '');
-                    }
-                    // 去掉纯数字节次（无“节”字）的情况：01-02 / 1-2
-                    if (periodStr) {
-                        const p = periodStr.replace('节', '');
-                        weeksOnlySource = weeksOnlySource.replace(p, '');
-                    }
+    // 周次规范化（只保留数字/逗号/短横线；保留“全部”但去掉括号）
+    const normalizeWeeks = (input) => {
+        if (!input) return '';
+        let s = String(input).replace(/\s+/g, '');
+        s = s.replace(/（/g, '(').replace(/）/g, ')');
+        s = s.replace(/[，、]/g, ',');
+        s = s.replace(/[～—–－]/g, '-');
+        s = s.replace(/至/g, '-');
+        s = s.replace(/\[?\d{1,2}-\d{1,2}节\]?/g, '');
+        s = s.replace(/周/g, '');
+        let hasAll = false;
+        s = s.replace(/\((.*?)\)/g, (_m, inner) => {
+            if (String(inner).includes('全部')) {
+                hasAll = true;
+                return '全部';
+            }
+            return '';
+        });
+        s = s.replace(/第/g, '').replace(/单/g, '').replace(/双/g, '');
+        const m = s.match(/[0-9]{1,2}(?:-[0-9]{1,2})?(?:,[0-9]{1,2}(?:-[0-9]{1,2})?)*/);
+        if (m && m[0]) return m[0] + (hasAll ? '全部' : '');
+        if (hasAll) return '全部';
+        return s.replace(/[^0-9,\-全都部,]/g, '');
+    };
 
-                    // 解析周次：只保留简单的分隔（数字/逗号/短横线），不要单双周等标记
-                    // 输出示例：
-                    // - "1-16"
-                    // - "1-8,10-16"
-                    // - "6"
-                    const normalizeWeeks = (input) => {
-                        if (!input) return '';
-                        let s = String(input).replace(/\s+/g, '');
-                        // 中文括号统一
-                        s = s.replace(/（/g, '(').replace(/）/g, ')');
-                        // 统一分隔符：中文逗号/顿号 -> 逗号；各种连接符 -> 短横线
-                        s = s.replace(/[，、]/g, ',');
-                        s = s.replace(/[～—–－]/g, '-');
-                        s = s.replace(/至/g, '-');
-                        // 去掉节次残留
-                        s = s.replace(/\[?\d{1,2}-\d{1,2}节\]?/g, '');
-                        // 去掉“周”字
-                        s = s.replace(/周/g, '');
-                        // 去掉括号内描述：保留“全部”（不保留括号），移除 (单)/(双) 等
-                        let hasAll = false;
-                        s = s.replace(/\((.*?)\)/g, (_m, inner) => {
-                            if (String(inner).includes('全部')) {
-                                hasAll = true;
-                                return '全部';
-                            }
-                            return '';
-                        });
-                        // 去掉其他文本标记（不需要单双周）
-                        s = s.replace(/第/g, '').replace(/单/g, '').replace(/双/g, '');
-                        // 提取数字范围串
-                        const m = s.match(/[0-9]{1,2}(?:-[0-9]{1,2})?(?:,[0-9]{1,2}(?:-[0-9]{1,2})?)*/);
-                        if (m && m[0]) return m[0] + (hasAll ? '全部' : '');
-                        if (hasAll) return '全部';
-                        // 兜底：保留数字/逗号/短横线 + (全部)
-                        const fallback = s.replace(/[^0-9,\-全都部,]/g, '');
-                        return fallback;
-                    };
-
-                    // 规则：节次在中括号里，剩余部分就是周次
-                    // 例如：9-11,13(全部)[01-02节] -> weekExpr=9-11,13(全部)
-                    const weekExpr = normalizeWeeks(weeksOnlySource);
-
-                    // 将周次表达式拆分为单周数组（不考虑单双周等复杂规则：只按数字/逗号/短横线分隔）
-                    const parseWeekList = (expr) => {
-                        if (!expr) return [];
-                        const s = String(expr).replace(/全部/g, '').replace(/[^0-9,\-]/g, '');
-                        if (!s) return [];
-                        const out = [];
-                        const parts = s.split(',').filter(Boolean);
-                        for (const part of parts) {
-                            if (part.includes('-')) {
-                                const [a, b] = part.split('-');
-                                const start = parseInt(a, 10);
-                                const end = parseInt(b, 10);
-                                if (!Number.isNaN(start) && !Number.isNaN(end)) {
-                                    const lo = Math.min(start, end);
-                                    const hi = Math.max(start, end);
-                                    for (let w = lo; w <= hi; w++) out.push(w);
-                                }
-                            } else {
-                                const w = parseInt(part, 10);
-                                if (!Number.isNaN(w)) out.push(w);
-                            }
-                        }
-                        // 去重 + 排序
-                        return Array.from(new Set(out)).sort((x, y) => x - y);
-                    };
-
-                    const weekList = parseWeekList(weekExpr);
-                    const location = timeLineIndex !== -1 && lines[timeLineIndex + 1] ? lines[timeLineIndex + 1] : (lines[3] || '未知');
-                    const base = {
-                        semester: semester,
-                        dayOfWeek: dayOfWeek,
-                        name: lines[0], // 第一行通常是课程名
-                        teacher: lines[1], // 第二行通常是老师
-                        period: periodStr,  // 节次信息（区间，如 01-02节）
-                        location,
-                        raw: lines.join(' | ')
-                    };
-
-                    // 核心优化：按周拆分存储，每条记录对应一个 week
-                    if (weekList.length > 0) {
-                        weekList.forEach(weekNum => {
-                            courses.push({
-                                ...base,
-                                week: weekNum,
-                                weeks: String(weekNum) // weeks 字段保存单周，便于前端兼容
-                            });
-                        });
-                    } else {
-                        // 兜底：解析不到周次时仍入库一条（week=0 表示未知）
-                        courses.push({
-                            ...base,
-                            week: 0,
-                            weeks: '0'
-                        });
-                    }
+    // 将周次表达式拆分为单周数组（不做单双周推断，仅按范围/逗号展开）
+    const parseWeekList = (expr) => {
+        if (!expr) return [];
+        const s = String(expr).replace(/全部/g, '').replace(/[^0-9,\-]/g, '');
+        if (!s) return [];
+        const out = [];
+        for (const part of s.split(',').filter(Boolean)) {
+            if (part.includes('-')) {
+                const [a, b] = part.split('-');
+                const start = parseInt(a, 10);
+                const end = parseInt(b, 10);
+                if (!Number.isNaN(start) && !Number.isNaN(end)) {
+                    const lo = Math.min(start, end);
+                    const hi = Math.max(start, end);
+                    for (let w = lo; w <= hi; w++) out.push(w);
                 }
-            });
+            } else {
+                const w = parseInt(part, 10);
+                if (!Number.isNaN(w)) out.push(w);
+            }
+        }
+        return Array.from(new Set(out)).sort((x, y) => x - y);
+    };
+
+    // 遍历每个格子：优先取详细版 kbcontent（包含老师/节次），没有再取 kbcontent1
+    $table.find('td').each((_, td) => {
+        const $td = $(td);
+        const $detail = $td.find('div.kbcontent').first();
+        const $simple = $td.find('div.kbcontent1').first();
+        const $contentEl = $detail.length ? $detail : $simple;
+        if (!$contentEl.length) return;
+
+        const content = $contentEl.html() || '';
+        if (!content.trim() || content.trim() === '&nbsp;') return;
+
+        // 通过单元格在行中的索引来确定星期几（index 1 是周一）
+        const columnIndex = $td.index();
+        const weekDays = ['', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
+        const dayOfWeek = weekDays[columnIndex] || '未知';
+
+        const lines = htmlToLines(content);
+        if (lines.length === 0) return;
+
+        // 按分隔线拆分（同一格可能有多门课）
+        const chunks = [];
+        let current = [];
+        for (const line of lines) {
+            if (/^-{5,}$/.test(line)) {
+                if (current.length > 0) chunks.push(current);
+                current = [];
+                continue;
+            }
+            current.push(line);
+        }
+        if (current.length > 0) chunks.push(current);
+
+        for (const chunkLines of chunks) {
+            if (!chunkLines || chunkLines.length < 2) continue;
+            if (chunkLines.length === 1 && chunkLines[0] === '&nbsp;') continue;
+
+            // 强智详细版常见结构：
+            // 0: 课程名[学时][性质]
+            // 1: 老师
+            // 2: 班级/周次/节次（包含 [01-02节]）
+            // 3: 上课地点
+            const rawText = chunkLines.join(' | ');
+            const titleLine = chunkLines[0] || '';
+            const name = String(titleLine).replace(/\[.*?\]/g, '').trim() || titleLine.trim();
+
+            // 找到“包含节次”的那一行作为时间行
+            let timeLineIndex = chunkLines.findIndex(l => /\[\d{1,2}-\d{1,2}节\]/.test(l) || /(\d{1,2})-(\d{1,2})节/.test(l));
+            if (timeLineIndex === -1) {
+                // 兜底：存在但格式不含“节]”
+                timeLineIndex = chunkLines.findIndex(l => (l.includes('周') || l.includes('节') || (l.includes('[') && l.includes(']'))));
+            }
+            const weekStr = timeLineIndex !== -1 ? (chunkLines[timeLineIndex] || '') : '';
+            const timeLine = String(weekStr).replace(/\s+/g, '');
+
+            // 节次
+            let periodStr = '';
+            const periodBracketMatch = timeLine.match(/\[(\d{1,2})-(\d{1,2})节\]/);
+            if (periodBracketMatch) {
+                periodStr = `${periodBracketMatch[1]}-${periodBracketMatch[2]}节`;
+            }
+            const periodMatch = weekStr.match(/(\d{1,2})-(\d{1,2})节/);
+            if (periodMatch) {
+                periodStr = periodMatch[0];
+            }
+
+            // 周次（剔除节次残留）
+            let weeksOnlySource = timeLine;
+            if (periodBracketMatch) weeksOnlySource = weeksOnlySource.replace(periodBracketMatch[0], '');
+            if (periodStr) weeksOnlySource = weeksOnlySource.replace(periodStr.replace('节', ''), '');
+            const weekExpr = normalizeWeeks(weeksOnlySource);
+            const weekList = parseWeekList(weekExpr);
+
+            // 老师：详细版通常第 2 行；简单版可能没有老师，尽量取“非时间行/非地点行”的一行
+            let teacher = '';
+            if (chunkLines.length >= 2) {
+                teacher = String(chunkLines[1]).replace(/^老师[:：]?\s*/g, '').trim();
+            }
+
+            // 上课地点：优先取最后一行；如果最后一行看起来像“班级/周次/节次”，再往后找
+            let location = chunkLines[chunkLines.length - 1] || '未知';
+            if (location === weekStr && chunkLines.length >= 3) {
+                location = chunkLines[chunkLines.length - 2] || '未知';
+            }
+            location = String(location).replace(/^上课地点[:：]?\s*/g, '').trim() || '未知';
+
+            const base = {
+                semester,
+                dayOfWeek,
+                name,
+                teacher,
+                period: periodStr,
+                location,
+                raw: rawText
+            };
+
+            // 按周拆分存储：每条记录对应一个 week
+            if (weekList.length > 0) {
+                for (const weekNum of weekList) {
+                    courses.push({
+                        ...base,
+                        week: weekNum,
+                        weeks: String(weekNum)
+                    });
+                }
+            } else {
+                courses.push({
+                    ...base,
+                    week: 0,
+                    weeks: '0'
+                });
+            }
         }
     });
 

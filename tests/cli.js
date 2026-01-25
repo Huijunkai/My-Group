@@ -150,38 +150,37 @@ async function showTimetable() {
             console.log(`\n📌 ${day}`);
             console.log('-'.repeat(90));
             
-            // 1. 深度排序逻辑
+            // 1) 排序：先按节次，再按周次（当前实现是“单周拆分存储”）
+            const periodStart = (p) => {
+                const m = String(p || '').match(/(\d{1,2})/);
+                return m ? parseInt(m[1], 10) : 99;
+            };
             dayCourses.sort((a, b) => {
-                // 提取起始节次数字
-                const secA = parseInt(a.weeks.match(/\[(\d+)/)?.[1] || 0);
-                const secB = parseInt(b.weeks.match(/\[(\d+)/)?.[1] || 0);
-                
-                if (secA !== secB) return secA - secB; // 优先按节次排
-
-                // 如果节次相同，按起始周数排
-                const weekA = parseInt(a.weeks.match(/(\d+)/)?.[1] || 0);
-                const weekB = parseInt(b.weeks.match(/(\d+)/)?.[1] || 0);
-                return weekA - weekB;
+                const pa = periodStart(a.period);
+                const pb = periodStart(b.period);
+                if (pa !== pb) return pa - pb;
+                const wa = Number.isFinite(a.week) ? a.week : parseInt(String(a.week || '0'), 10);
+                const wb = Number.isFinite(b.week) ? b.week : parseInt(String(b.week || '0'), 10);
+                return (wa || 0) - (wb || 0);
             });
 
             // 2. 冲突检测与渲染
             for (let i = 0; i < dayCourses.length; i++) {
                 const c = dayCourses[i];
-                const sectionMatch = c.weeks.match(/\[\d+[-\d]*节\]/);
-                const section = sectionMatch ? sectionMatch[0] : '[未知节次]';
-                const weekRange = c.weeks.replace(section, '').trim();
+                const section = c.period ? `[${c.period}]` : '[未知节次]';
+                const weekRange = c.week ? `第${c.week}周` : '周次未知';
 
                 // 检查与上一门课是否冲突 (节次相同且周数有重叠)
                 let conflictTag = '';
                 if (i > 0) {
                     const prev = dayCourses[i - 1];
-                    const prevSection = prev.weeks.match(/\[\d+[-\d]*节\]/)?.[0];
-                    if (section === prevSection && section !== '[未知节次]') {
+                    const prevSection = prev.period ? `[${prev.period}]` : '[未知节次]';
+                    if (section === prevSection && section !== '[未知节次]' && c.week === prev.week) {
                         conflictTag = ' ⚠️ [冲突/合班]';
                     }
                 }
                 
-                const output = `${section.padEnd(12)} | ${c.name.padEnd(25)} | ${c.location.padEnd(15)} | ${weekRange}`;
+                const output = `${section.padEnd(12)} | ${c.name.padEnd(25)} | ${String(c.location || '').padEnd(15)} | ${weekRange}`;
                 console.log(conflictTag ? `\x1b[33m${output}${conflictTag}\x1b[0m` : output);
             }
         }
