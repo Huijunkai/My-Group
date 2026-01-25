@@ -5,6 +5,8 @@ const { getStudentInfo, getTimetable, getGrades, getExamSchedule, getSemesterPla
 const { syncStudent, syncCourses, syncGrades, syncExams, syncPlans, syncProgress } = require('./src/db/sync');
 const { Student, Course, Grade, Exam, Plan, Progress } = require('./src/db/models');
 
+const { initDatabase } = require('./src/db');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
