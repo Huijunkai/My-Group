@@ -57,7 +57,45 @@ async function syncCourses(studentId, courses) {
     }
     if (rows.length === 0) return;
 
-    await Course.bulkCreate(rows, {
+    // PostgreSQL 限制：同一次 INSERT ... ON CONFLICT DO UPDATE 中，
+    // 如果待插入数组里出现“相同主键”的重复行，会报错：
+    // "ON CONFLICT DO UPDATE command cannot affect row a second time"
+    // 因此这里必须先按主键去重（保留信息更完整的一条）。
+    const dedupMap = new Map();
+    for (const r of rows) {
+        const key = [
+            r.studentId,
+            r.semester,
+            r.name,
+            r.dayOfWeek,
+            String(r.week),
+            r.period
+        ].join('||');
+
+        const prev = dedupMap.get(key);
+        if (!prev) {
+            dedupMap.set(key, r);
+            continue;
+        }
+
+        // 合并策略：优先保留 raw 更长、location/teacher 非空的记录
+        const prevRawLen = prev.raw ? String(prev.raw).length : 0;
+        const nextRawLen = r.raw ? String(r.raw).length : 0;
+
+        const merged = {
+            ...prev,
+            teacher: (prev.teacher && String(prev.teacher).trim()) ? prev.teacher : r.teacher,
+            location: (prev.location && String(prev.location).trim()) ? prev.location : r.location,
+            weeks: (prev.weeks && String(prev.weeks).trim()) ? prev.weeks : r.weeks,
+            raw: nextRawLen > prevRawLen ? r.raw : prev.raw
+        };
+
+        dedupMap.set(key, merged);
+    }
+
+    const dedupRows = Array.from(dedupMap.values());
+
+    await Course.bulkCreate(dedupRows, {
         updateOnDuplicate: ['teacher', 'weeks', 'location', 'raw']
     });
 }
