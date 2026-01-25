@@ -49,9 +49,34 @@ const Exam = sequelize.define('Exam', {
     status: DataTypes.STRING
 });
 
+// 学期计划表
+const SemesterPlan = sequelize.define('SemesterPlan', {
+    studentId: { type: DataTypes.STRING, primaryKey: true },
+    semester: { type: DataTypes.STRING, primaryKey: true },
+    courseCode: { type: DataTypes.STRING, primaryKey: true },
+    courseName: DataTypes.STRING,
+    credit: DataTypes.STRING,
+    totalHours: DataTypes.STRING,
+    courseType: DataTypes.STRING,
+    examType: DataTypes.STRING
+});
+
+// 学习完成情况表
+const StudyProgress = sequelize.define('StudyProgress', {
+    studentId: { type: DataTypes.STRING, primaryKey: true },
+    category: { type: DataTypes.STRING, primaryKey: true },
+    requiredCredits: DataTypes.STRING,
+    completedCredits: DataTypes.STRING,
+    currentCredits: DataTypes.STRING,
+    remainingCredits: DataTypes.STRING,
+    lastSync: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+});
+
 module.exports = {
     Student,
     Course,
     Grade,
-    Exam
+    Exam,
+    SemesterPlan,
+    StudyProgress
 };

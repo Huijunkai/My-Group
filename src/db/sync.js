@@ -1,4 +1,4 @@
-const { Student, Course, Grade, Exam } = require('./models');
+const { Student, Course, Grade, Exam, SemesterPlan, StudyProgress } = require('./models');
 const { sequelize } = require('./index');
 
 // 修正模型定义中的 sequelize 引用
@@ -63,9 +63,43 @@ async function syncExams(studentId, exams) {
     }
 }
 
+/**
+ * 同步学期计划
+ */
+async function syncSemesterPlan(studentId, plansGrouped) {
+    if (!studentId || !plansGrouped) return;
+
+    for (const semester in plansGrouped) {
+        for (const plan of plansGrouped[semester]) {
+            await SemesterPlan.upsert({
+                studentId,
+                semester,
+                ...plan
+            });
+        }
+    }
+}
+
+/**
+ * 同步学习完成情况
+ */
+async function syncStudyProgress(studentId, progressData) {
+    if (!studentId || !progressData || !Array.isArray(progressData)) return;
+
+    for (const item of progressData) {
+        await StudyProgress.upsert({
+            studentId,
+            ...item,
+            lastSync: new Date()
+        });
+    }
+}
+
 module.exports = {
     syncStudent,
     syncCourses,
     syncGrades,
-    syncExams
+    syncExams,
+    syncSemesterPlan,
+    syncStudyProgress
 };
