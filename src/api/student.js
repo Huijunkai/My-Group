@@ -22,9 +22,17 @@ async function getStudentInfo(cookies) {
  */
 async function getTimetable(cookies) {
     try {
-        const instance = createInstance(cookies, `${BASE_URL}/framework/xsMain.jsp`);
+        // 课表页在强智系统里常见行为：先 302 再 200（加 token/参数）
+        // createInstance 默认 maxRedirects=0 会导致拿到空 body，解析出来就是 []
+        const instance = createInstance(cookies, `${BASE_URL}/framework/xsMain.jsp`, 5);
         const response = await instance.get(`${BASE_URL}/xskb/xskb_list.do`);
-        return parser.parseTimetable(response.data);
+
+        const html = response && response.data ? response.data : '';
+        // 基本防呆：拿到的不是课表页时（例如跳回登录/空页面），直接返回空数组
+        if (!html || typeof html !== 'string' || !html.includes('kbtable')) {
+            return [];
+        }
+        return parser.parseTimetable(html);
     } catch (error) {
         console.error('获取课表信息失败:', error.message);
         return null;

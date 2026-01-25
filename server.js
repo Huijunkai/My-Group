@@ -53,6 +53,20 @@ app.post('/api/sync', async (req, res) => {
         const info = await getStudentInfo(cookies);
         if (info) {
             await syncStudent(username, info);
+
+            // 关键：课表是前端“立即可见”的核心数据。
+            // 之前是后台同步，前端立刻 GET /api/student/:id 经常拿到 courses=[]
+            // 这里至少等待课表抓取+入库完成后再返回。
+            let timetableCount = 0;
+            try {
+                const timetable = await getTimetable(cookies);
+                if (timetable && Array.isArray(timetable) && timetable.length > 0) {
+                    await syncCourses(username, timetable);
+                    timetableCount = timetable.length;
+                }
+            } catch (e) {
+                console.error('Sync courses failed (awaited):', e);
+            }
             
             // 后台静默同步其他数据
             // 注意：这里不使用 await，让它在后台运行
@@ -61,7 +75,6 @@ app.post('/api/sync', async (req, res) => {
             
             // 为了防止 Promise.all 抛出未捕获异常导致进程崩溃，这里单独处理每个 Promise
             const syncTasks = [
-                getTimetable(cookies).then(data => data && syncCourses(username, data)).catch(e => console.error('Sync courses failed:', e)),
                 getGrades(cookies).then(data => data && syncGrades(username, data)).catch(e => console.error('Sync grades failed:', e)),
                 getExamSchedule(cookies).then(data => data && syncExams(username, data)).catch(e => console.error('Sync exams failed:', e)),
                 getSemesterPlan(cookies).then(data => data && syncPlans(username, data)).catch(e => console.error('Sync plans failed:', e)),
@@ -73,8 +86,11 @@ app.post('/api/sync', async (req, res) => {
 
             return res.json({
                 success: true,
-                message: '登录成功，数据正在后台同步中',
-                student: info
+                message: timetableCount > 0
+                    ? '登录成功，课表已同步，其它数据正在后台同步中'
+                    : '登录成功，课表暂未同步到数据（请稍后在“同步”重试），其它数据正在后台同步中',
+                student: info,
+                timetableCount
             });
         } else {
             return res.status(500).json({ success: false, message: '获取学生信息失败' });
