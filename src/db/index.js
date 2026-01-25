@@ -34,6 +34,34 @@ async function initDatabase() {
             }
             console.log('Course 表结构已收敛');
 
+            // 主键迁移：把 period 纳入 Course 主键，防止同名课程不同节次被覆盖
+            // 兼容：老表可能 period 非主键或存在 null 值，先修复再重建 PK
+            if (columns.period) {
+                // 把 period 为空的记录统一填上占位（避免 PK 约束无法创建）
+                await sequelize.query(
+                    `UPDATE "Courses" SET "period" = '未知节次'
+                     WHERE "period" IS NULL OR TRIM("period") = ''`
+                );
+
+                const pkRows = await sequelize.query(
+                    `SELECT constraint_name
+                     FROM information_schema.table_constraints
+                     WHERE table_name = 'Courses' AND constraint_type = 'PRIMARY KEY'`,
+                    { type: QueryTypes.SELECT }
+                );
+                const pkName = pkRows && pkRows.length > 0 ? pkRows[0].constraint_name : null;
+                if (pkName) {
+                    // 重新创建 PK：studentId + semester + name + dayOfWeek + period
+                    await sequelize.query(`ALTER TABLE "Courses" DROP CONSTRAINT IF EXISTS "${pkName}"`);
+                    await sequelize.query(
+                        `ALTER TABLE "Courses"
+                         ADD CONSTRAINT "Courses_pkey"
+                         PRIMARY KEY ("studentId","semester","name","dayOfWeek","period")`
+                    );
+                    console.log('Course 表主键已迁移（包含 period）');
+                }
+            }
+
             // 数据清洗：确保 weeks 不再包含“节次”，节次进入 period 列
             // 例如：weeks="6(全部)[01-02节]" -> weeks="6(全部)", period="1-2节"
             const dirtyRows = await sequelize.query(

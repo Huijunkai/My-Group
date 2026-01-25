@@ -15,13 +15,14 @@ const Student = sequelize.define('Student', {
 
 // 课程表
 const Course = sequelize.define('Course', {
+    // 说明：必须把 period 纳入主键，否则同一天同名不同节次会被 upsert 覆盖
     studentId: { type: DataTypes.STRING, primaryKey: true },
     semester: { type: DataTypes.STRING, primaryKey: true },
     name: { type: DataTypes.STRING, primaryKey: true },
     dayOfWeek: { type: DataTypes.STRING, primaryKey: true },
+    period: { type: DataTypes.STRING, primaryKey: true }, // 节次字符串，如 "01-02节"
     teacher: DataTypes.STRING,
     weeks: DataTypes.STRING, // 周次字符串，如 "1-16周" / "1-8,10-16周(单)"
-    period: DataTypes.STRING, // 节次字符串，如 "1-2节"
     location: DataTypes.STRING,
     // 兼容字段：前端仍可能用 raw 做解析兜底
     raw: DataTypes.TEXT

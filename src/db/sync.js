@@ -22,22 +22,32 @@ async function syncStudent(studentId, info) {
 async function syncCourses(studentId, courses) {
     if (!studentId || !courses || !Array.isArray(courses)) return;
     
-    // 简单起见，先删除该学生该学期的课表再重新插入（或者使用 upsert）
-    // 这里假设 courses 中包含 semester 信息
+    // 关键优化：
+    // 1) period 已纳入主键，避免同名课程不同节次被覆盖
+    // 2) 使用 bulkCreate + updateOnDuplicate 减少数据库往返，降低同步 500/超时概率
+    const rows = [];
     for (const course of courses) {
-        // 只写入 Course 表需要的字段（避免模型字段收敛后出现未知字段报错）
-        await Course.upsert({
+        if (!course) continue;
+        const period = (course.period || '').toString().trim();
+        // period 是主键之一，没有则无法正确定位到课表格子，直接跳过
+        if (!period) continue;
+        rows.push({
             studentId,
             semester: course.semester,
             name: course.name,
-            teacher: course.teacher,
-            location: course.location,
-            weeks: course.weeks,
-            period: course.period,
             dayOfWeek: course.dayOfWeek,
+            period: period,
+            teacher: course.teacher,
+            weeks: course.weeks,
+            location: course.location,
             raw: course.raw
         });
     }
+    if (rows.length === 0) return;
+
+    await Course.bulkCreate(rows, {
+        updateOnDuplicate: ['teacher', 'weeks', 'location', 'raw']
+    });
 }
 
 /**
