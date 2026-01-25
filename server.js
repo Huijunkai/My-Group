@@ -27,6 +27,35 @@ app.get('/', (req, res) => {
 });
 
 /**
+ * 版本/部署信息：用于确认 Railway 是否已部署到最新代码
+ * GET /api/version
+ */
+app.get('/api/version', (_req, res) => {
+    let pkgVersion = 'unknown';
+    try {
+        // eslint-disable-next-line global-require
+        const pkg = require('./package.json');
+        pkgVersion = pkg && pkg.version ? pkg.version : 'unknown';
+    } catch (_e) { }
+
+    res.json({
+        name: 'jw-backend',
+        version: pkgVersion,
+        buildTime: new Date().toISOString(),
+        // Railway 常见注入（不保证存在）
+        railway: {
+            environment: process.env.RAILWAY_ENVIRONMENT || '',
+            service: process.env.RAILWAY_SERVICE_NAME || '',
+            gitCommit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.RAILWAY_GIT_COMMIT || ''
+        },
+        features: {
+            timetableFollowRedirects: true,
+            syncAwaitTimetable: true
+        }
+    });
+});
+
+/**
  * 同步接口：登录并同步所有数据到数据库
  * POST /api/sync
  * Body: { username, password }
