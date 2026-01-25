@@ -73,38 +73,71 @@ function parseTimetable(html) {
                     
                     // 提取周次字符串，如 "1-16" 或 "1-16(单)"
                     let weekStr = lines[timeLineIndex] || '';
-                    // 尝试匹配 [1-16周] 或 [1-16]
-                    const weekMatch = weekStr.match(/\[(.*?)(?:周)?\]/);
-                    if (weekMatch) {
-                        const weekContent = weekMatch[1];
-                        
-                        // 判断单双周
-                        if (weekContent.includes('单')) isOdd = true;
-                        if (weekContent.includes('双')) isEven = true;
-                        
-                        // 提取数字范围
-                        const rangeMatch = weekContent.match(/(\d+)-(\d+)/);
-                        if (rangeMatch) {
-                            startWeek = parseInt(rangeMatch[1]);
-                            endWeek = parseInt(rangeMatch[2]);
-                        } else {
-                            // 可能是单个周，如 [5周]
-                            const singleMatch = weekContent.match(/(\d+)/);
-                            if (singleMatch) {
-                                startWeek = endWeek = parseInt(singleMatch[1]);
-                            }
+                    
+                    // 优化匹配逻辑：优先匹配带"周"字的，如果没有则尝试匹配纯数字范围（通常在方括号内）
+                    // 强智系统常见格式：
+                    // 1. [1-16周]
+                    // 2. [1-16周](单)
+                    // 3. 1-16周
+                    
+                    // 提取方括号内的内容作为周次依据
+                    const bracketMatch = weekStr.match(/\[(.*?)\]/);
+                    let weekContent = bracketMatch ? bracketMatch[1] : weekStr;
+                    
+                    // 如果内容包含"节"，说明可能提取错了或者是混合信息，需要进一步清洗
+                    // 这里我们假设周次信息通常包含"周"字，或者纯数字范围
+                    
+                    // 判断单双周
+                    if (weekContent.includes('单')) isOdd = true;
+                    if (weekContent.includes('双')) isEven = true;
+                    
+                    // 提取周次范围 (匹配 "数字-数字" 且后面紧跟 "周" 或者 位于方括号内)
+                    // 优先匹配带 "周" 的
+                    let rangeMatch = weekContent.match(/(\d+)-(\d+)周/);
+                    if (!rangeMatch) {
+                        // 如果没有"周"字，尝试匹配纯数字范围，但要排除可能是节次的情况
+                        // 通常节次会带有"节"字，或者在周次之后
+                        rangeMatch = weekContent.match(/(\d+)-(\d+)/);
+                    }
+
+                    if (rangeMatch) {
+                        startWeek = parseInt(rangeMatch[1]);
+                        endWeek = parseInt(rangeMatch[2]);
+                    } else {
+                        // 可能是单个周，如 [5周]
+                        const singleMatch = weekContent.match(/(\d+)周/);
+                        if (singleMatch) {
+                            startWeek = endWeek = parseInt(singleMatch[1]);
                         }
                     }
 
                     // 解析节次信息
                     let periodStr = '';
                     let startPeriod = 0, endPeriod = 0;
-                    // 尝试匹配 "1-2节" 或 "1-2"
-                    const periodMatch = weekStr.match(/(\d+)-(\d+)(?:节)?/);
+                    
+                    // 节次通常带有 "节" 字，或者在周次信息之后
+                    // 匹配 "数字-数字节"
+                    const periodMatch = weekStr.match(/(\d+)-(\d+)节/);
                     if (periodMatch) {
                         periodStr = periodMatch[0];
                         startPeriod = parseInt(periodMatch[1]);
                         endPeriod = parseInt(periodMatch[2]);
+                    } else {
+                        // 如果没有 "节" 字，尝试查找周次之后的数字对
+                        // 例如：[1-16周]01-02
+                        // 先去掉周次部分
+                        const contentAfterWeek = weekStr.replace(/\[.*?\]|.*?周/g, '');
+                        const numMatch = contentAfterWeek.match(/(\d+)-(\d+)/);
+                        if (numMatch) {
+                             // 简单的启发式：节次通常小于 14
+                             const s = parseInt(numMatch[1]);
+                             const e = parseInt(numMatch[2]);
+                             if (s <= 14 && e <= 14) {
+                                 startPeriod = s;
+                                 endPeriod = e;
+                                 periodStr = `${s}-${e}节`;
+                             }
+                        }
                     }
 
                     courses.push({
