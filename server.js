@@ -87,14 +87,21 @@ app.post('/api/sync', async (req, res) => {
             // 之前是后台同步，前端立刻 GET /api/student/:id 经常拿到 courses=[]
             // 这里至少等待课表抓取+入库完成后再返回。
             let timetableCount = 0;
+            let timetableDebug = { ok: false, reason: 'not_started' };
             try {
                 const timetable = await getTimetable(cookies);
                 if (timetable && Array.isArray(timetable) && timetable.length > 0) {
                     await syncCourses(username, timetable);
                     timetableCount = timetable.length;
+                    timetableDebug = { ok: true, reason: 'synced' };
+                } else if (Array.isArray(timetable) && timetable.length === 0) {
+                    timetableDebug = { ok: false, reason: 'parsed_empty' };
+                } else {
+                    timetableDebug = { ok: false, reason: 'fetch_failed_or_null' };
                 }
             } catch (e) {
                 console.error('Sync courses failed (awaited):', e);
+                timetableDebug = { ok: false, reason: 'exception', message: String(e && e.message ? e.message : e) };
             }
             
             // 后台静默同步其他数据
@@ -119,7 +126,8 @@ app.post('/api/sync', async (req, res) => {
                     ? '登录成功，课表已同步，其它数据正在后台同步中'
                     : '登录成功，课表暂未同步到数据（请稍后在“同步”重试），其它数据正在后台同步中',
                 student: info,
-                timetableCount
+                timetableCount,
+                timetableDebug
             });
         } else {
             return res.status(500).json({ success: false, message: '获取学生信息失败' });
