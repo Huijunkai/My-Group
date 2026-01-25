@@ -1,10 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const { login } = require('./src/api/auth');
-const { getStudentInfo, getTimetable, getGrades, getExamSchedule } = require('./src/api/student');
+const { getStudentInfo, getTimetable, getGrades, getExamSchedule, getSemesterPlan, getStudyProgress } = require('./src/api/student');
 const { initDatabase } = require('./src/db');
-const { syncStudent, syncCourses, syncGrades, syncExams } = require('./src/db/sync');
-const { Student, Course, Grade, Exam } = require('./src/db/models');
+const { syncStudent, syncCourses, syncGrades, syncExams, syncPlans, syncProgress } = require('./src/db/sync');
+const { Student, Course, Grade, Exam, Plan, Progress } = require('./src/db/models');
 
 const app = express();
 app.use(cors());
