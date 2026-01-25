@@ -25,9 +25,17 @@ async function syncCourses(studentId, courses) {
     // 简单起见，先删除该学生该学期的课表再重新插入（或者使用 upsert）
     // 这里假设 courses 中包含 semester 信息
     for (const course of courses) {
+        // 只写入 Course 表需要的字段（避免模型字段收敛后出现未知字段报错）
         await Course.upsert({
             studentId,
-            ...course
+            semester: course.semester,
+            name: course.name,
+            teacher: course.teacher,
+            location: course.location,
+            weeks: course.weeks,
+            period: course.period,
+            dayOfWeek: course.dayOfWeek,
+            raw: course.raw
         });
     }
 }

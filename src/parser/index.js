@@ -65,14 +65,14 @@ function parseTimetable(html) {
                 const lines = part.split('<br>').map(line => cheerio.load(line).text().trim()).filter(line => line);
                 if (lines.length >= 3) {
                     // 强智系统特征：包含 [xx-xx节] 的那一行一定是时间/周次信息
-                    const timeLineIndex = lines.findIndex(l => l.includes('[') && l.includes('节]'));
+                    let timeLineIndex = lines.findIndex(l => l.includes('[') && l.includes('节]'));
+                    if (timeLineIndex === -1) {
+                        // 兜底：有些页面不含 "节]"，但仍会在同一行包含周次/节次信息
+                        timeLineIndex = lines.findIndex(l => (l.includes('周') || l.includes('节') || (l.includes('[') && l.includes(']'))));
+                    }
                     
-                    // 解析周次信息
-                    let startWeek = 0, endWeek = 0;
-                    let isOdd = false, isEven = false;
-                    
-                    // 提取周次字符串，如 "1-16" 或 "1-16(单)"
-                    let weekStr = lines[timeLineIndex] || '';
+                    // 提取时间/周次那一行原文
+                    const weekStr = timeLineIndex !== -1 ? (lines[timeLineIndex] || '') : '';
                     
                     // 优化匹配逻辑：优先匹配带"周"字的，如果没有则尝试匹配纯数字范围（通常在方括号内）
                     // 强智系统常见格式：
@@ -82,46 +82,33 @@ function parseTimetable(html) {
                     
                     // 提取方括号内的内容作为周次依据
                     const bracketMatch = weekStr.match(/\[(.*?)\]/);
-                    let weekContent = bracketMatch ? bracketMatch[1] : weekStr;
+                    let weekContent = (bracketMatch ? bracketMatch[1] : weekStr).trim();
                     
-                    // 如果内容包含"节"，说明可能提取错了或者是混合信息，需要进一步清洗
-                    // 这里我们假设周次信息通常包含"周"字，或者纯数字范围
-                    
-                    // 判断单双周
-                    if (weekContent.includes('单')) isOdd = true;
-                    if (weekContent.includes('双')) isEven = true;
-                    
-                    // 提取周次范围 (匹配 "数字-数字" 且后面紧跟 "周" 或者 位于方括号内)
-                    // 优先匹配带 "周" 的
-                    let rangeMatch = weekContent.match(/(\d+)-(\d+)周/);
-                    if (!rangeMatch) {
-                        // 如果没有"周"字，尝试匹配纯数字范围，但要排除可能是节次的情况
-                        // 通常节次会带有"节"字，或者在周次之后
-                        rangeMatch = weekContent.match(/(\d+)-(\d+)/);
-                    }
+                    // 清洗 weekContent：去掉节次/多余符号，只保留周次描述
+                    // 例如：[1-16周]01-02节 -> weekContent = "1-16周"
+                    weekContent = weekContent
+                        .replace(/\s+/g, '')
+                        .replace(/(\d+)-(\d+)节/g, '')
+                        .replace(/(\d+)-(\d+)$/g, '');
 
-                    if (rangeMatch) {
-                        startWeek = parseInt(rangeMatch[1]);
-                        endWeek = parseInt(rangeMatch[2]);
-                    } else {
-                        // 可能是单个周，如 [5周]
-                        const singleMatch = weekContent.match(/(\d+)周/);
-                        if (singleMatch) {
-                            startWeek = endWeek = parseInt(singleMatch[1]);
-                        }
+                    // 单/双周标记可能在方括号外（如 [1-16周](单)）
+                    const oddEvenMatch = weekStr.match(/\((单|双)\)/);
+                    if (oddEvenMatch) {
+                        weekContent = `${weekContent}(${oddEvenMatch[1]})`;
+                    } else if (weekStr.includes('单') && !weekContent.includes('单')) {
+                        weekContent = `${weekContent}(单)`;
+                    } else if (weekStr.includes('双') && !weekContent.includes('双')) {
+                        weekContent = `${weekContent}(双)`;
                     }
 
                     // 解析节次信息
                     let periodStr = '';
-                    let startPeriod = 0, endPeriod = 0;
                     
                     // 节次通常带有 "节" 字，或者在周次信息之后
                     // 匹配 "数字-数字节"
                     const periodMatch = weekStr.match(/(\d+)-(\d+)节/);
                     if (periodMatch) {
                         periodStr = periodMatch[0];
-                        startPeriod = parseInt(periodMatch[1]);
-                        endPeriod = parseInt(periodMatch[2]);
                     } else {
                         // 如果没有 "节" 字，尝试查找周次之后的数字对
                         // 例如：[1-16周]01-02
@@ -133,8 +120,6 @@ function parseTimetable(html) {
                              const s = parseInt(numMatch[1]);
                              const e = parseInt(numMatch[2]);
                              if (s <= 14 && e <= 14) {
-                                 startPeriod = s;
-                                 endPeriod = e;
                                  periodStr = `${s}-${e}节`;
                              }
                         }
@@ -145,14 +130,8 @@ function parseTimetable(html) {
                         dayOfWeek: dayOfWeek,
                         name: lines[0], // 第一行通常是课程名
                         teacher: lines[1], // 第二行通常是老师
-                        weeks: weekStr, // 原始周次信息
-                        startWeek,
-                        endWeek,
-                        isOdd,
-                        isEven,
-                        period: periodStr,
-                        startPeriod,
-                        endPeriod,
+                        weeks: weekContent, // 仅保留周次信息（必要时附带单/双周标记）
+                        period: periodStr,  // 节次信息
                         // 地点通常在“节”那一行的下一行
                         location: timeLineIndex !== -1 && lines[timeLineIndex + 1] ? lines[timeLineIndex + 1] : (lines[3] || '未知'),
                         raw: lines.join(' | ')

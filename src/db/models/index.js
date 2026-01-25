@@ -20,15 +20,10 @@ const Course = sequelize.define('Course', {
     name: { type: DataTypes.STRING, primaryKey: true },
     dayOfWeek: { type: DataTypes.STRING, primaryKey: true },
     teacher: DataTypes.STRING,
-    weeks: DataTypes.STRING, // 原始周次字符串，如 "1-16" 或 "1-8,10-16"
-    startWeek: DataTypes.INTEGER, // 起始周
-    endWeek: DataTypes.INTEGER,   // 结束周
-    isOdd: DataTypes.BOOLEAN,     // 是否单周
-    isEven: DataTypes.BOOLEAN,    // 是否双周
-    period: DataTypes.STRING,     // 节次，如 "1-2"
-    startPeriod: DataTypes.INTEGER, // 起始节次
-    endPeriod: DataTypes.INTEGER,   // 结束节次
+    weeks: DataTypes.STRING, // 周次字符串，如 "1-16周" / "1-8,10-16周(单)"
+    period: DataTypes.STRING, // 节次字符串，如 "1-2节"
     location: DataTypes.STRING,
+    // 兼容字段：前端仍可能用 raw 做解析兜底
     raw: DataTypes.TEXT
 });
 
