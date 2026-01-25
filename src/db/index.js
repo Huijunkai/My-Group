@@ -34,33 +34,46 @@ async function initDatabase() {
             }
             console.log('Course 表结构已收敛');
 
-            // 主键迁移：把 period 纳入 Course 主键，防止同名课程不同节次被覆盖
-            // 兼容：老表可能 period 非主键或存在 null 值，先修复再重建 PK
+            // 结构升级：新增 week 字段，并把 week 纳入主键（实现“按周单独存储”）
+            // 注意：新增 week 主键会与旧数据冲突（旧数据 weeks 是范围表达式），因此这里清空缓存表，后续由 /api/sync 重新写入
+            if (!columns.week) {
+                await qi.addColumn('Courses', 'week', { type: require('sequelize').DataTypes.INTEGER });
+                console.log('Course 表新增 week 字段');
+                await sequelize.query('DELETE FROM "Courses"');
+                console.log('Course 表旧缓存已清空，等待重新同步写入');
+            }
+
+            // 主键迁移：studentId + semester + name + dayOfWeek + week + period
+            // 兼容：period/week 为空的记录统一填占位/0，避免 PK 创建失败
             if (columns.period) {
-                // 把 period 为空的记录统一填上占位（避免 PK 约束无法创建）
                 await sequelize.query(
                     `UPDATE "Courses" SET "period" = '未知节次'
                      WHERE "period" IS NULL OR TRIM("period") = ''`
                 );
-
-                const pkRows = await sequelize.query(
-                    `SELECT constraint_name
-                     FROM information_schema.table_constraints
-                     WHERE table_name = 'Courses' AND constraint_type = 'PRIMARY KEY'`,
-                    { type: QueryTypes.SELECT }
-                );
-                const pkName = pkRows && pkRows.length > 0 ? pkRows[0].constraint_name : null;
-                if (pkName) {
-                    // 重新创建 PK：studentId + semester + name + dayOfWeek + period
-                    await sequelize.query(`ALTER TABLE "Courses" DROP CONSTRAINT IF EXISTS "${pkName}"`);
-                    await sequelize.query(
-                        `ALTER TABLE "Courses"
-                         ADD CONSTRAINT "Courses_pkey"
-                         PRIMARY KEY ("studentId","semester","name","dayOfWeek","period")`
-                    );
-                    console.log('Course 表主键已迁移（包含 period）');
-                }
             }
+            if (columns.week) {
+                await sequelize.query(
+                    `UPDATE "Courses" SET "week" = 0
+                     WHERE "week" IS NULL`
+                );
+            }
+
+            const pkRows = await sequelize.query(
+                `SELECT constraint_name
+                 FROM information_schema.table_constraints
+                 WHERE table_name = 'Courses' AND constraint_type = 'PRIMARY KEY'`,
+                { type: QueryTypes.SELECT }
+            );
+            const pkName = pkRows && pkRows.length > 0 ? pkRows[0].constraint_name : null;
+            if (pkName) {
+                await sequelize.query(`ALTER TABLE "Courses" DROP CONSTRAINT IF EXISTS "${pkName}"`);
+            }
+            await sequelize.query(
+                `ALTER TABLE "Courses"
+                 ADD CONSTRAINT "Courses_pkey"
+                 PRIMARY KEY ("studentId","semester","name","dayOfWeek","week","period")`
+            );
+            console.log('Course 表主键已迁移（包含 week + period）');
 
             // 数据清洗：确保 weeks 不再包含“节次”，节次进入 period 列
             // 例如：weeks="6(全部)[01-02节]" -> weeks="6(全部)", period="1-2节"

@@ -160,20 +160,64 @@ function parseTimetable(html) {
                     };
 
                     // 规则：节次在中括号里，剩余部分就是周次
-                    // 例如：9-11,13(全部)[01-02节] -> weeks=9-11,13(全部)
-                    const weekContent = normalizeWeeks(weeksOnlySource);
+                    // 例如：9-11,13(全部)[01-02节] -> weekExpr=9-11,13(全部)
+                    const weekExpr = normalizeWeeks(weeksOnlySource);
 
-                    courses.push({
+                    // 将周次表达式拆分为单周数组（不考虑单双周等复杂规则：只按数字/逗号/短横线分隔）
+                    const parseWeekList = (expr) => {
+                        if (!expr) return [];
+                        const s = String(expr).replace(/全部/g, '').replace(/[^0-9,\-]/g, '');
+                        if (!s) return [];
+                        const out = [];
+                        const parts = s.split(',').filter(Boolean);
+                        for (const part of parts) {
+                            if (part.includes('-')) {
+                                const [a, b] = part.split('-');
+                                const start = parseInt(a, 10);
+                                const end = parseInt(b, 10);
+                                if (!Number.isNaN(start) && !Number.isNaN(end)) {
+                                    const lo = Math.min(start, end);
+                                    const hi = Math.max(start, end);
+                                    for (let w = lo; w <= hi; w++) out.push(w);
+                                }
+                            } else {
+                                const w = parseInt(part, 10);
+                                if (!Number.isNaN(w)) out.push(w);
+                            }
+                        }
+                        // 去重 + 排序
+                        return Array.from(new Set(out)).sort((x, y) => x - y);
+                    };
+
+                    const weekList = parseWeekList(weekExpr);
+                    const location = timeLineIndex !== -1 && lines[timeLineIndex + 1] ? lines[timeLineIndex + 1] : (lines[3] || '未知');
+                    const base = {
                         semester: semester,
                         dayOfWeek: dayOfWeek,
                         name: lines[0], // 第一行通常是课程名
                         teacher: lines[1], // 第二行通常是老师
-                        weeks: weekContent, // 仅保留周次信息：纯数字/逗号/短横线
-                        period: periodStr,  // 节次信息
-                        // 地点通常在“节”那一行的下一行
-                        location: timeLineIndex !== -1 && lines[timeLineIndex + 1] ? lines[timeLineIndex + 1] : (lines[3] || '未知'),
+                        period: periodStr,  // 节次信息（区间，如 01-02节）
+                        location,
                         raw: lines.join(' | ')
-                    });
+                    };
+
+                    // 核心优化：按周拆分存储，每条记录对应一个 week
+                    if (weekList.length > 0) {
+                        weekList.forEach(weekNum => {
+                            courses.push({
+                                ...base,
+                                week: weekNum,
+                                weeks: String(weekNum) // weeks 字段保存单周，便于前端兼容
+                            });
+                        });
+                    } else {
+                        // 兜底：解析不到周次时仍入库一条（week=0 表示未知）
+                        courses.push({
+                            ...base,
+                            week: 0,
+                            weeks: '0'
+                        });
+                    }
                 }
             });
         }

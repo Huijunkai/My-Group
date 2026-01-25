@@ -23,19 +23,31 @@ async function syncCourses(studentId, courses) {
     if (!studentId || !courses || !Array.isArray(courses)) return;
     
     // 关键优化：
-    // 1) period 已纳入主键，避免同名课程不同节次被覆盖
+    // 1) week + period 已纳入主键，避免同名课程不同周/不同节次被覆盖
     // 2) 使用 bulkCreate + updateOnDuplicate 减少数据库往返，降低同步 500/超时概率
+    // 3) 按学期先清空旧缓存，避免周次变更后出现“旧周次残留”
+    const semesterSet = new Set();
+    for (const course of courses) {
+        if (course && course.semester) semesterSet.add(course.semester);
+    }
+    for (const sem of semesterSet) {
+        await Course.destroy({ where: { studentId, semester: sem } });
+    }
+
     const rows = [];
     for (const course of courses) {
         if (!course) continue;
         const period = (course.period || '').toString().trim();
         // period 是主键之一，没有则无法正确定位到课表格子，直接跳过
         if (!period) continue;
+        const week = Number.isFinite(course.week) ? course.week : parseInt(String(course.week || '0'), 10);
+        if (!Number.isFinite(week)) continue;
         rows.push({
             studentId,
             semester: course.semester,
             name: course.name,
             dayOfWeek: course.dayOfWeek,
+            week: week,
             period: period,
             teacher: course.teacher,
             weeks: course.weeks,
