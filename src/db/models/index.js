@@ -20,7 +20,14 @@ const Course = sequelize.define('Course', {
     name: { type: DataTypes.STRING, primaryKey: true },
     dayOfWeek: { type: DataTypes.STRING, primaryKey: true },
     teacher: DataTypes.STRING,
-    weeks: DataTypes.STRING,
+    weeks: DataTypes.STRING, // 原始周次字符串，如 "1-16" 或 "1-8,10-16"
+    startWeek: DataTypes.INTEGER, // 起始周
+    endWeek: DataTypes.INTEGER,   // 结束周
+    isOdd: DataTypes.BOOLEAN,     // 是否单周
+    isEven: DataTypes.BOOLEAN,    // 是否双周
+    period: DataTypes.STRING,     // 节次，如 "1-2"
+    startPeriod: DataTypes.INTEGER, // 起始节次
+    endPeriod: DataTypes.INTEGER,   // 结束节次
     location: DataTypes.STRING,
     raw: DataTypes.TEXT
 });
@@ -50,7 +57,7 @@ const Exam = sequelize.define('Exam', {
 });
 
 // 学期计划表
-const SemesterPlan = sequelize.define('SemesterPlan', {
+const Plan = sequelize.define('Plan', {
     studentId: { type: DataTypes.STRING, primaryKey: true },
     semester: { type: DataTypes.STRING, primaryKey: true },
     courseCode: { type: DataTypes.STRING, primaryKey: true },
@@ -61,15 +68,14 @@ const SemesterPlan = sequelize.define('SemesterPlan', {
     examType: DataTypes.STRING
 });
 
-// 学习完成情况表
-const StudyProgress = sequelize.define('StudyProgress', {
+// 学习进度表
+const Progress = sequelize.define('Progress', {
     studentId: { type: DataTypes.STRING, primaryKey: true },
-    category: { type: DataTypes.STRING, primaryKey: true },
+    category: { type: DataTypes.STRING, primaryKey: true }, // 课程体系
     requiredCredits: DataTypes.STRING,
     completedCredits: DataTypes.STRING,
     currentCredits: DataTypes.STRING,
-    remainingCredits: DataTypes.STRING,
-    lastSync: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+    remainingCredits: DataTypes.STRING
 });
 
 module.exports = {
@@ -77,6 +83,6 @@ module.exports = {
     Course,
     Grade,
     Exam,
-    SemesterPlan,
-    StudyProgress
+    Plan,
+    Progress
 };

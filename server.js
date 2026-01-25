@@ -1,10 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const { login } = require('./src/api/auth');
-const { getStudentInfo, getTimetable, getGrades, getExamSchedule, getSemesterPlan, getStudyProgress } = require('./src/api/student');
+const { getStudentInfo, getTimetable, getGrades, getExamSchedule } = require('./src/api/student');
 const { initDatabase } = require('./src/db');
-const { syncStudent, syncCourses, syncGrades, syncExams, syncSemesterPlan, syncStudyProgress } = require('./src/db/sync');
-const { Student, Course, Grade, Exam, SemesterPlan, StudyProgress } = require('./src/db/models');
+const { syncStudent, syncCourses, syncGrades, syncExams } = require('./src/db/sync');
+const { Student, Course, Grade, Exam } = require('./src/db/models');
 
 const app = express();
 app.use(cors());
@@ -58,8 +58,8 @@ app.post('/api/sync', async (req, res) => {
                 getTimetable(cookies).then(data => data && syncCourses(username, data)),
                 getGrades(cookies).then(data => data && syncGrades(username, data)),
                 getExamSchedule(cookies).then(data => data && syncExams(username, data)),
-                getSemesterPlan(cookies).then(data => data && syncSemesterPlan(username, data)),
-                getStudyProgress(cookies).then(data => data && syncStudyProgress(username, data))
+                getSemesterPlan(cookies).then(data => data && syncPlans(username, data)),
+                getStudyProgress(cookies).then(data => data && syncProgress(username, data))
             ]).catch(err => console.error('Background sync error:', err));
 
             return res.json({
@@ -98,8 +98,8 @@ app.get('/api/student/:id', async (req, res) => {
             Course.findAll({ where: { studentId } }),
             Grade.findAll({ where: { studentId } }),
             Exam.findAll({ where: { studentId } }),
-            SemesterPlan.findAll({ where: { studentId } }),
-            StudyProgress.findAll({ where: { studentId } })
+            Plan.findAll({ where: { studentId } }),
+            Progress.findAll({ where: { studentId } })
         ]);
 
         res.json({

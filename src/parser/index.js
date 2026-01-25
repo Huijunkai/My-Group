@@ -67,13 +67,59 @@ function parseTimetable(html) {
                     // 强智系统特征：包含 [xx-xx节] 的那一行一定是时间/周次信息
                     const timeLineIndex = lines.findIndex(l => l.includes('[') && l.includes('节]'));
                     
+                    // 解析周次信息
+                    let startWeek = 0, endWeek = 0;
+                    let isOdd = false, isEven = false;
+                    
+                    // 提取周次字符串，如 "1-16" 或 "1-16(单)"
+                    let weekStr = lines[timeLineIndex] || '';
+                    // 尝试匹配 [1-16周] 或 [1-16]
+                    const weekMatch = weekStr.match(/\[(.*?)(?:周)?\]/);
+                    if (weekMatch) {
+                        const weekContent = weekMatch[1];
+                        
+                        // 判断单双周
+                        if (weekContent.includes('单')) isOdd = true;
+                        if (weekContent.includes('双')) isEven = true;
+                        
+                        // 提取数字范围
+                        const rangeMatch = weekContent.match(/(\d+)-(\d+)/);
+                        if (rangeMatch) {
+                            startWeek = parseInt(rangeMatch[1]);
+                            endWeek = parseInt(rangeMatch[2]);
+                        } else {
+                            // 可能是单个周，如 [5周]
+                            const singleMatch = weekContent.match(/(\d+)/);
+                            if (singleMatch) {
+                                startWeek = endWeek = parseInt(singleMatch[1]);
+                            }
+                        }
+                    }
+
+                    // 解析节次信息
+                    let periodStr = '';
+                    let startPeriod = 0, endPeriod = 0;
+                    // 尝试匹配 "1-2节" 或 "1-2"
+                    const periodMatch = weekStr.match(/(\d+)-(\d+)(?:节)?/);
+                    if (periodMatch) {
+                        periodStr = periodMatch[0];
+                        startPeriod = parseInt(periodMatch[1]);
+                        endPeriod = parseInt(periodMatch[2]);
+                    }
+
                     courses.push({
                         semester: semester,
                         dayOfWeek: dayOfWeek,
                         name: lines[0], // 第一行通常是课程名
                         teacher: lines[1], // 第二行通常是老师
-                        // 如果找到了包含“节”的行，就取那一行，否则取第三行
-                        weeks: timeLineIndex !== -1 ? lines[timeLineIndex] : lines[2],
+                        weeks: weekStr, // 原始周次信息
+                        startWeek,
+                        endWeek,
+                        isOdd,
+                        isEven,
+                        period: periodStr,
+                        startPeriod,
+                        endPeriod,
                         // 地点通常在“节”那一行的下一行
                         location: timeLineIndex !== -1 && lines[timeLineIndex + 1] ? lines[timeLineIndex + 1] : (lines[3] || '未知'),
                         raw: lines.join(' | ')
