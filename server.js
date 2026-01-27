@@ -15,8 +15,13 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 
 // 初始化数据库
+let dbReady = false;
 initDatabase().then(() => {
     console.log('Database initialized');
+    dbReady = true;
+}).catch((error) => {
+    console.error('Database initialization failed:', error);
+    // 即使数据库初始化失败，服务器仍然启动，但会在 API 调用时返回错误
 });
 
 /**
@@ -65,6 +70,11 @@ app.post('/api/sync', async (req, res) => {
 
     if (!username || !password) {
         return res.status(400).json({ success: false, message: '请提供学号和密码' });
+    }
+
+    // 检查数据库连接状态
+    if (!dbReady) {
+        return res.status(503).json({ success: false, message: '数据库未就绪，请稍后重试' });
     }
 
     try {
@@ -135,7 +145,13 @@ app.post('/api/sync', async (req, res) => {
     } catch (error) {
         console.error('Sync error:', error);
         // 确保返回具体的错误信息以便调试
-        res.status(500).json({ success: false, message: '服务器内部错误: ' + error.message });
+        const errorMessage = error && error.message ? error.message : String(error);
+        const errorStack = error && error.stack ? error.stack : '';
+        console.error('Error details:', { message: errorMessage, stack: errorStack });
+        res.status(500).json({ 
+            success: false, 
+            message: '服务器内部错误: ' + errorMessage 
+        });
     }
 });
 
