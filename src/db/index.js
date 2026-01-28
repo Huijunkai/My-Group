@@ -1,7 +1,7 @@
 const { Sequelize } = require('sequelize');
 
-const sequelize = new Sequelize('postgresql://postgres:eKtmtaNElgnVqHPBTQNIyyAjvLdcUBFR@switchyard.proxy.rlwy.net:51088/railway', {
-    dialect: 'postgres',
+const sequelize = new Sequelize('mysql://root:qhJgaOeqFadSycseeWDiBIUZzQFyIHsm@yamanote.proxy.rlwy.net:13428/railway', {
+    dialect: 'mysql',
     logging: false, // 设置为 console.log 可以查看 SQL 语句
     pool: {
         max: 5,
