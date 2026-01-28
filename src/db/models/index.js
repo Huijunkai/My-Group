@@ -3,7 +3,7 @@ const { sequelize } = require('../index');
 
 // 学生基本信息表
 const Student = sequelize.define('Student', {
-    studentId: { type: DataTypes.STRING, primaryKey: true }, // 学号作为主键
+    studentId: { type: DataTypes.STRING(50), primaryKey: true }, // 学号作为主键
     name: DataTypes.STRING,
     gender: DataTypes.STRING,
     enrollmentYear: DataTypes.STRING,
@@ -17,12 +17,12 @@ const Student = sequelize.define('Student', {
 const Course = sequelize.define('Course', {
     // 说明：
     // - 必须把 week + period 纳入主键，否则同名课程在不同周/不同节会被覆盖
-    studentId: { type: DataTypes.STRING, primaryKey: true },
-    semester: { type: DataTypes.STRING, primaryKey: true },
-    name: { type: DataTypes.STRING, primaryKey: true },
-    dayOfWeek: { type: DataTypes.STRING, primaryKey: true },
+    studentId: { type: DataTypes.STRING(50), primaryKey: true },
+    semester: { type: DataTypes.STRING(50), primaryKey: true },
+    name: { type: DataTypes.STRING(100), primaryKey: true },
+    dayOfWeek: { type: DataTypes.STRING(20), primaryKey: true },
     week: { type: DataTypes.INTEGER, primaryKey: true }, // 单周：1,2,3...
-    period: { type: DataTypes.STRING, primaryKey: true }, // 节次字符串，如 "01-02节"
+    period: { type: DataTypes.STRING(50), primaryKey: true }, // 节次字符串，如 "01-02节"
     teacher: DataTypes.STRING,
     weeks: DataTypes.STRING, // 存储单周（与 week 对齐），例如 "6"
     location: DataTypes.STRING,
@@ -32,9 +32,9 @@ const Course = sequelize.define('Course', {
 
 // 成绩表
 const Grade = sequelize.define('Grade', {
-    studentId: { type: DataTypes.STRING, primaryKey: true },
-    semester: { type: DataTypes.STRING, primaryKey: true },
-    courseCode: { type: DataTypes.STRING, primaryKey: true },
+    studentId: { type: DataTypes.STRING(50), primaryKey: true },
+    semester: { type: DataTypes.STRING(50), primaryKey: true },
+    courseCode: { type: DataTypes.STRING(50), primaryKey: true },
     courseName: DataTypes.STRING,
     score: DataTypes.STRING,
     credit: DataTypes.STRING,
@@ -45,9 +45,9 @@ const Grade = sequelize.define('Grade', {
 
 // 考试安排表
 const Exam = sequelize.define('Exam', {
-    studentId: { type: DataTypes.STRING, primaryKey: true },
-    courseName: { type: DataTypes.STRING, primaryKey: true },
-    examTime: { type: DataTypes.STRING, primaryKey: true },
+    studentId: { type: DataTypes.STRING(50), primaryKey: true },
+    courseName: { type: DataTypes.STRING(100), primaryKey: true },
+    examTime: { type: DataTypes.STRING(50), primaryKey: true },
     location: DataTypes.STRING,
     seatNumber: DataTypes.STRING,
     examType: DataTypes.STRING,
@@ -56,9 +56,9 @@ const Exam = sequelize.define('Exam', {
 
 // 学期计划表
 const Plan = sequelize.define('Plan', {
-    studentId: { type: DataTypes.STRING, primaryKey: true },
-    semester: { type: DataTypes.STRING, primaryKey: true },
-    courseCode: { type: DataTypes.STRING, primaryKey: true },
+    studentId: { type: DataTypes.STRING(50), primaryKey: true },
+    semester: { type: DataTypes.STRING(50), primaryKey: true },
+    courseCode: { type: DataTypes.STRING(50), primaryKey: true },
     courseName: DataTypes.STRING,
     credit: DataTypes.STRING,
     totalHours: DataTypes.STRING,
@@ -68,8 +68,8 @@ const Plan = sequelize.define('Plan', {
 
 // 学习进度表
 const Progress = sequelize.define('Progress', {
-    studentId: { type: DataTypes.STRING, primaryKey: true },
-    category: { type: DataTypes.STRING, primaryKey: true }, // 课程体系
+    studentId: { type: DataTypes.STRING(50), primaryKey: true },
+    category: { type: DataTypes.STRING(50), primaryKey: true }, // 课程体系
     requiredCredits: DataTypes.STRING,
     completedCredits: DataTypes.STRING,
     currentCredits: DataTypes.STRING,
