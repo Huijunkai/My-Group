@@ -66,7 +66,7 @@ app.get('/api/version', (_req, res) => {
  * Body: { username, password }
  */
 app.post('/api/sync', async (req, res) => {
-    const { username, password } = req.body;
+    const { username, password, semester } = req.body;
 
     if (!username || !password) {
         return res.status(400).json({ success: false, message: '请提供学号和密码' });
@@ -78,7 +78,7 @@ app.post('/api/sync', async (req, res) => {
     }
 
     try {
-        console.log(`正在同步学生数据: ${username}`);
+        console.log(`正在同步学生数据: ${username}${semester ? ` (学期: ${semester})` : ''}`);
         const loginResult = await login(username, password);
 
         if (!loginResult.success) {
@@ -99,7 +99,8 @@ app.post('/api/sync', async (req, res) => {
             let timetableCount = 0;
             let timetableDebug = { ok: false, reason: 'not_started' };
             try {
-                const timetable = await getTimetable(cookies);
+                // 如果指定了学期，带入学期参数抓取
+                const timetable = await getTimetable(cookies, semester);
                 if (timetable && Array.isArray(timetable) && timetable.length > 0) {
                     await syncCourses(username, timetable);
                     timetableCount = timetable.length;
@@ -121,7 +122,7 @@ app.post('/api/sync', async (req, res) => {
             
             // 为了防止 Promise.all 抛出未捕获异常导致进程崩溃，这里单独处理每个 Promise
             const syncTasks = [
-                getGrades(cookies).then(data => data && syncGrades(username, data)).catch(e => console.error('Sync grades failed:', e)),
+                getGrades(cookies, semester).then(data => data && syncGrades(username, data)).catch(e => console.error('Sync grades failed:', e)),
                 getExamSchedule(cookies).then(data => data && syncExams(username, data)).catch(e => console.error('Sync exams failed:', e)),
                 getSemesterPlan(cookies).then(data => data && syncPlans(username, data)).catch(e => console.error('Sync plans failed:', e)),
                 getStudyProgress(cookies).then(data => data && syncProgress(username, data)).catch(e => console.error('Sync progress failed:', e))
@@ -161,6 +162,8 @@ app.post('/api/sync', async (req, res) => {
  */
 app.get('/api/student/:id', async (req, res) => {
     const studentId = req.params.id;
+    const { semester } = req.query; // 获取查询参数中的学期
+
     try {
         const student = await Student.findByPk(studentId, {
             include: [
@@ -172,11 +175,17 @@ app.get('/api/student/:id', async (req, res) => {
             return res.status(404).json({ success: false, message: '未找到该学生缓存数据' });
         }
 
+        // 构造查询条件
+        const where = { studentId };
+        if (semester) {
+            where.semester = semester;
+        }
+
         // 查询关联数据
         const [courses, grades, exams, plans, progress] = await Promise.all([
             // 课表：按学期 -> 周次 -> 星期 -> 节次排序
             Course.findAll({
-                where: { studentId },
+                where, // 如果指定了学期，则只返回该学期的课表
                 order: [
                     ['semester', 'ASC'],
                     ['week', 'ASC'],
@@ -187,7 +196,7 @@ app.get('/api/student/:id', async (req, res) => {
             }),
             // 成绩：按学期 -> 课程编号排序
             Grade.findAll({
-                where: { studentId },
+                where: { studentId }, // 成绩通常需要看全部，不强制过滤
                 order: [
                     ['semester', 'ASC'],
                     ['courseCode', 'ASC']
