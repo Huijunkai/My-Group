@@ -181,7 +181,6 @@ function parseTimetable(html) {
             const periodBracketMatch = timeLine.match(/\[(\d{1,2})(?:-(\d{1,2}))+节\]/);
             if (periodBracketMatch) {
                 periodToken = periodBracketMatch[0]; // 例如 "[05-06-07节]"
-                // 注意：重复捕获组在 JS 中只保留“最后一次捕获”，所以 [2] 就是最后一节
                 periodStr = `${periodBracketMatch[1]}-${periodBracketMatch[2]}节`;
             }
             const periodMatch = weekStr.match(/(\d{1,2})(?:-(\d{1,2}))+节/);
@@ -200,18 +199,27 @@ function parseTimetable(html) {
             const weekExpr = normalizeWeeks(weeksOnlySource);
             const weekList = parseWeekList(weekExpr);
 
-            // 老师：详细版通常第 2 行；简单版可能没有老师，尽量取“非时间行/非地点行”的一行
+            // 老师：优先从带有 title='老师' 的标签中提取
             let teacher = '';
-            if (chunkLines.length >= 2) {
+            const teacherLine = chunkLines.find(l => l.includes('老师') || l.includes('曾') || l.includes('讲师'));
+            if (teacherLine) {
+                teacher = teacherLine.replace(/^老师[:：]?\s*/g, '').trim();
+            } else if (chunkLines.length >= 2) {
                 teacher = String(chunkLines[1]).replace(/^老师[:：]?\s*/g, '').trim();
             }
 
-            // 上课地点：优先取最后一行；如果最后一行看起来像“班级/周次/节次”，再往后找
-            let location = chunkLines[chunkLines.length - 1] || '未知';
-            if (location === weekStr && chunkLines.length >= 3) {
-                location = chunkLines[chunkLines.length - 2] || '未知';
+            // 上课地点：优先从带有 title='教室' 或 '上课地点' 的标签中提取
+            let location = '未知';
+            const locationLine = chunkLines.find(l => l.includes('教室') || l.includes('实验室') || l.includes('阶梯教室'));
+            if (locationLine) {
+                location = locationLine.replace(/^上课地点[:：]?\s*/g, '').replace(/^教室[:：]?\s*/g, '').trim();
+            } else {
+                location = chunkLines[chunkLines.length - 1] || '未知';
+                if (location === weekStr && chunkLines.length >= 3) {
+                    location = chunkLines[chunkLines.length - 2] || '未知';
+                }
+                location = String(location).replace(/^上课地点[:：]?\s*/g, '').trim() || '未知';
             }
-            location = String(location).replace(/^上课地点[:：]?\s*/g, '').trim() || '未知';
 
             const base = {
                 semester,

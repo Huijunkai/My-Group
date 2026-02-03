@@ -26,10 +26,17 @@ async function getTimetable(cookies, semester = '') {
         // 这里改成“手动跟随 302”，确保每一步都带上 Cookie
         const maxHops = 5;
         let url = `${BASE_URL}/xskb/xskb_list.do`;
-        
-        // 如果指定了学期，带上学期参数
+        let method = 'GET';
+        let postData = null;
+
+        // 如果指定了学期，使用 POST 方式提交表单，模拟网页原生查询行为
         if (semester) {
-            url += `?xnxq01id=${encodeURIComponent(semester)}`;
+            method = 'POST';
+            postData = new URLSearchParams({
+                xnxq01id: semester,
+                zc: '', // 默认全部周次
+                sfFD: '1' // 默认放大模式，获取更多细节
+            });
         }
 
         let referer = `${BASE_URL}/framework/xsMain.jsp`;
@@ -37,7 +44,11 @@ async function getTimetable(cookies, semester = '') {
 
         for (let i = 0; i < maxHops; i++) {
             const instance = createInstance(cookies, referer, 0);
-            response = await instance.get(url);
+            if (method === 'POST' && i === 0) {
+                response = await instance.post(url, postData);
+            } else {
+                response = await instance.get(url);
+            }
 
             // 302/303：继续跟随
             if ((response.status === 302 || response.status === 303) && response.headers && response.headers.location) {
@@ -53,6 +64,7 @@ async function getTimetable(cookies, semester = '') {
                     url = `${base}/${location}`;
                 }
                 referer = url;
+                method = 'GET'; // 跳转后统一使用 GET
                 continue;
             }
             break;
