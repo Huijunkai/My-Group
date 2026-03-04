@@ -1,6 +1,14 @@
 const { Sequelize } = require('sequelize');
 
-const sequelize = new Sequelize('mysql://root:qhJgaOeqFadSycseeWDiBIUZzQFyIHsm@yamanote.proxy.rlwy.net:13428/railway', {
+// 优先从环境变量读取数据库连接串，便于在 Railway 等平台上切换实例：
+// 例如：mysql://user:password@nozomi.proxy.rlwy.net:24647/railway
+const dbUrl =
+    process.env.DATABASE_URL ||
+    process.env.MYSQL_URL ||
+    process.env.MYSQLDATABASE_URL ||
+    'mysql://root:qhJgaOeqFadSycseeWDiBIUZzQFyIHsm@yamanote.proxy.rlwy.net:13428/railway';
+
+const sequelize = new Sequelize(dbUrl, {
     dialect: 'mysql',
     logging: false, // 设置为 console.log 可以查看 SQL 语句
     pool: {
