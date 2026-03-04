@@ -1,12 +1,11 @@
 const { Sequelize } = require('sequelize');
 
 // 优先从环境变量读取数据库连接串，便于在 Railway 等平台上切换实例：
-// 例如：mysql://user:password@nozomi.proxy.rlwy.net:24647/railway
 const dbUrl =
     process.env.DATABASE_URL ||
     process.env.MYSQL_URL ||
     process.env.MYSQLDATABASE_URL ||
-    'mysql://root:qhJgaOeqFadSycseeWDiBIUZzQFyIHsm@yamanote.proxy.rlwy.net:13428/railway';
+    'mysql://root:ZsanAhqaOCNMgsDccbrhEZrnBOFmVOcK@centerbeam.proxy.rlwy.net:21332/railway';
 
 const sequelize = new Sequelize(dbUrl, {
     dialect: 'mysql',
