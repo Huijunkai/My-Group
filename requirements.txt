@@ -1,2 +1,0 @@
-# Python 依赖（用于 tests/test_api.py 等）
-requests>=2.28.0,<3.0.0
