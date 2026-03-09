@@ -85,9 +85,9 @@ async function initDatabase() {
         await sequelize.authenticate();
         console.log('✅ 数据库连接成功 [本地 MariaDB]');
         
-        await sequelize.sync({ 
-            alter: process.env.NODE_ENV === 'development' 
-        });
+        // 自动创建不存在的表结构
+        // 当表不存在时会自动创建，表存在时不会修改结构
+        await sequelize.sync();
         console.log('✅ 所有模型已同步');
         
     } catch (error) {
