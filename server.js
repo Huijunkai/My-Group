@@ -98,6 +98,7 @@ app.post('/api/sync', async (req, res) => {
             // 这里至少等待课表抓取+入库完成后再返回。
             let timetableCount = 0;
             let timetableDebug = { ok: false, reason: 'not_started' };
+            let currentSemester = semester; // 默认为传入的学期
             try {
                 // 如果指定了学期，带入学期参数抓取
                 const timetable = await getTimetable(cookies, semester);
@@ -105,6 +106,12 @@ app.post('/api/sync', async (req, res) => {
                     await syncCourses(username, timetable);
                     timetableCount = timetable.length;
                     timetableDebug = { ok: true, reason: 'synced' };
+                    
+                    // 从课表中获取当前学期
+                    if (timetable[0] && timetable[0].semester) {
+                        currentSemester = timetable[0].semester;
+                        console.log(`从课表中获取到当前学期: ${currentSemester}`);
+                    }
                 } else if (Array.isArray(timetable) && timetable.length === 0) {
                     timetableDebug = { ok: false, reason: 'parsed_empty' };
                 } else {
@@ -122,14 +129,73 @@ app.post('/api/sync', async (req, res) => {
             
             // 为了防止 Promise.all 抛出未捕获异常导致进程崩溃，这里单独处理每个 Promise
             const syncTasks = [
-                getGrades(cookies, semester).then(data => data && syncGrades(username, data)).catch(e => console.error('Sync grades failed:', e)),
-                getExamSchedule(cookies).then(data => data && syncExams(username, data)).catch(e => console.error('Sync exams failed:', e)),
-                getSemesterPlan(cookies).then(data => data && syncPlans(username, data)).catch(e => console.error('Sync plans failed:', e)),
-                getStudyProgress(cookies).then(data => data && syncProgress(username, data)).catch(e => console.error('Sync progress failed:', e))
+                getGrades(cookies).then(data => {
+                    if (data) {
+                        syncGrades(username, data);
+                        // 统计所有学期的成绩数量
+                        let totalGrades = 0;
+                        for (const semester in data) {
+                            if (data[semester] && Array.isArray(data[semester])) {
+                                totalGrades += data[semester].length;
+                            }
+                        }
+                        return totalGrades;
+                    }
+                    return 0;
+                }).catch(e => {
+                    console.error('Sync grades failed:', e);
+                    return 0;
+                }),
+                getExamSchedule(cookies, currentSemester).then(data => {
+                    if (data) {
+                        syncExams(username, data);
+                        return data.length;
+                    }
+                    return 0;
+                }).catch(e => {
+                    console.error('Sync exams failed:', e);
+                    return 0;
+                }),
+                getSemesterPlan(cookies).then(data => {
+                    if (data) {
+                        syncPlans(username, data);
+                        // 统计所有学期的培养计划数量
+                        let totalPlans = 0;
+                        for (const semester in data) {
+                            if (data[semester] && Array.isArray(data[semester])) {
+                                totalPlans += data[semester].length;
+                            }
+                        }
+                        return totalPlans;
+                    }
+                    return 0;
+                }).catch(e => {
+                    console.error('Sync plans failed:', e);
+                    return 0;
+                }),
+                getStudyProgress(cookies).then(data => {
+                    if (data) {
+                        syncProgress(username, data);
+                        return 1; // 学分进度通常是一个对象，不是数组
+                    }
+                    return 0;
+                }).catch(e => {
+                    console.error('Sync progress failed:', e);
+                    return 0;
+                })
             ];
             
             // 触发任务但不等待
-            Promise.all(syncTasks).then(() => console.log(`后台同步完成: ${username}`));
+            Promise.all(syncTasks).then((results) => {
+                // 统计各项数据
+                const gradesCount = results[0] || 0;
+                const examsCount = results[1] || 0;
+                const plansCount = results[2] || 0;
+                const progressCount = results[3] || 0;
+                
+                console.log(`后台同步完成: ${username}`);
+                console.log(`数据统计: 课表=${timetableCount}, 成绩=${gradesCount}, 考试安排=${examsCount}, 培养计划=${plansCount}, 学分进度=${progressCount}`);
+            });
 
             return res.json({
                 success: true,

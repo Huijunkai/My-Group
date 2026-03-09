@@ -72,7 +72,8 @@ const sequelize = new Sequelize(
             charset: 'utf8mb4',
             collate: 'utf8mb4_unicode_ci',
             timestamps: true,
-            underscored: true
+            underscored: false,  // 禁用下划线命名，使用驼峰命名
+            freezeTableName: true  // 禁用表名复数化
         },
         
         timezone: '+08:00'
@@ -85,9 +86,9 @@ async function initDatabase() {
         await sequelize.authenticate();
         console.log('✅ 数据库连接成功 [本地 MariaDB]');
         
-        // 自动创建不存在的表结构
-        // 当表不存在时会自动创建，表存在时不会修改结构
-        await sequelize.sync();
+        // 自动创建不存在的表结构，或更新现有表结构
+        // alter: true 会根据模型定义自动更新表结构，但不会删除数据
+        await sequelize.sync({ alter: true });
         console.log('✅ 所有模型已同步');
         
     } catch (error) {
