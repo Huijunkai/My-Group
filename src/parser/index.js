@@ -300,21 +300,37 @@ function parseExams(html) {
     const exams = [];
     const $table = $('#dataList');
     
+    if ($table.length === 0) {
+        return exams;
+    }
+    
     $table.find('tr').each((i, el) => {
-        if (i === 0) return;
+        if (i === 0) {
+            return;
+        }
+        
         const tds = $(el).find('td');
-        if (tds.length >= 6) {
-            exams.push({
-                courseName: $(tds[1]).text().trim(),
-                examTime: $(tds[3]).text().trim(),
-                location: $(tds[4]).text().trim(),
-                seatNumber: $(tds[5]).text().trim(),
-                examType: $(tds[2]).text().trim(),
-                status: $(tds[6]).text().trim()
-            });
+        
+        // 检查是否是"未查询到数据"的提示行
+        const firstTdText = $(tds[0]).text().trim();
+        if (firstTdText === '未查询到数据' || tds.length === 1) {
+            return;
+        }
+        
+        if (tds.length >= 7) {
+            const exam = {
+                courseName: $(tds[3]).text().trim(),  // 课程名称在第3列
+                examTime: $(tds[4]).text().trim(),    // 考试时间在第4列
+                location: $(tds[5]).text().trim(),     // 考场在第5列
+                seatNumber: $(tds[6]).text().trim(),   // 座位号在第6列
+                examType: $(tds[1]).text().trim(),     // 考试场次作为考试类型在第1列
+                status: $(tds[7]).text().trim()        // 准考证号作为状态在第7列
+            };
+            
+            exams.push(exam);
         }
     });
-
+    
     return exams;
 }
 

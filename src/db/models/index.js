@@ -11,6 +11,9 @@ const Student = sequelize.define('Student', {
     major: DataTypes.STRING,
     college: DataTypes.STRING,
     lastSync: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+}, {
+    tableName: 'Student',  // 明确指定表名为单数形式
+    timestamps: false   // 不自动添加 createdAt 和 updatedAt 字段
 });
 
 // 课程表
@@ -28,6 +31,9 @@ const Course = sequelize.define('Course', {
     location: DataTypes.STRING,
     // 兼容字段：前端仍可能用 raw 做解析兜底
     raw: DataTypes.TEXT
+}, {
+    tableName: 'Course',  // 明确指定表名为单数形式
+    timestamps: false   // 不自动添加 createdAt 和 updatedAt 字段
 });
 
 // 成绩表
@@ -41,6 +47,9 @@ const Grade = sequelize.define('Grade', {
     gradePoint: DataTypes.STRING,
     courseType: DataTypes.STRING,
     examType: DataTypes.STRING
+}, {
+    tableName: 'Grade',  // 明确指定表名为单数形式
+    timestamps: false   // 不自动添加 createdAt 和 updatedAt 字段
 });
 
 // 考试安排表
@@ -52,6 +61,9 @@ const Exam = sequelize.define('Exam', {
     seatNumber: DataTypes.STRING,
     examType: DataTypes.STRING,
     status: DataTypes.STRING
+}, {
+    tableName: 'Exam',  // 明确指定表名为单数形式
+    timestamps: false   // 不自动添加 createdAt 和 updatedAt 字段
 });
 
 // 学期计划表
@@ -64,6 +76,9 @@ const Plan = sequelize.define('Plan', {
     totalHours: DataTypes.STRING,
     courseType: DataTypes.STRING,
     examType: DataTypes.STRING
+}, {
+    tableName: 'Plan',  // 明确指定表名为单数形式
+    timestamps: false   // 不自动添加 createdAt 和 updatedAt 字段
 });
 
 // 学习进度表
@@ -74,6 +89,9 @@ const Progress = sequelize.define('Progress', {
     completedCredits: DataTypes.STRING,
     currentCredits: DataTypes.STRING,
     remainingCredits: DataTypes.STRING
+}, {
+    tableName: 'Progress',  // 明确指定表名为单数形式
+    timestamps: false   // 不自动添加 createdAt 和 updatedAt 字段
 });
 
 module.exports = {

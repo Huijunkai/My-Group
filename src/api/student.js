@@ -107,11 +107,20 @@ async function getGrades(cookies, semester = '') {
 /**
  * 获取考试安排
  */
-async function getExamSchedule(cookies) {
+async function getExamSchedule(cookies, semester = '') {
     try {
         const instance = createInstance(cookies, `${BASE_URL}/framework/xsMain.jsp`);
-        const response = await instance.get(`${BASE_URL}/xsks/xsksap_list`);
-        return parser.parseExams(response.data);
+        
+        // 无论是否指定学期，都使用 POST 方式提交表单
+        // 这样可以确保获取到正确的考试安排数据
+        const postData = new URLSearchParams({
+            xnxqid: semester, // 使用传入的学期参数
+            xqlb: '' // 默认不指定学期类别
+        });
+        
+        const response = await instance.post(`${BASE_URL}/xsks/xsksap_list`, postData);
+        const exams = parser.parseExams(response.data);
+        return exams;
     } catch (error) {
         console.error('获取考试安排失败:', error.message);
         return null;

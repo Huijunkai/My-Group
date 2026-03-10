@@ -169,7 +169,9 @@ async function syncGrades(studentId, gradesGrouped) {
  * 同步考试安排
  */
 async function syncExams(studentId, exams) {
-    if (!studentId || !exams || !Array.isArray(exams)) return;
+    if (!studentId || !exams || !Array.isArray(exams)) {
+        return;
+    }
     
     for (const exam of exams) {
         await Exam.upsert({
