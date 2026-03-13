@@ -20,7 +20,6 @@ const sequelize = new Sequelize(
         define: {
             charset: 'utf8mb4',
             collate: 'utf8mb4_unicode_ci',
-            timestamps: true,
             underscored: false,
             freezeTableName: true
         },
@@ -34,7 +33,7 @@ async function initDatabase() {
         await sequelize.authenticate();
         console.log('数据库连接成功 [华为云 MariaDB]');
         
-        await sequelize.sync({ alter: true });
+        await sequelize.sync({ force: false });
         console.log('所有模型已同步');
         
     } catch (error) {
