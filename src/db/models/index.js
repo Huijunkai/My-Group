@@ -29,6 +29,7 @@ const Course = sequelize.define('Course', {
     teacher: DataTypes.STRING,
     weeks: DataTypes.STRING, // 存储单周（与 week 对齐），例如 "6"
     location: DataTypes.STRING,
+    courseType: DataTypes.STRING, // 课程类型：必修/选修
     // 兼容字段：前端仍可能用 raw 做解析兜底
     raw: DataTypes.TEXT
 }, {
@@ -72,13 +73,15 @@ const Plan = sequelize.define('Plan', {
     semester: { type: DataTypes.STRING(50), primaryKey: true },
     courseCode: { type: DataTypes.STRING(50), primaryKey: true },
     courseName: DataTypes.STRING,
+    teachingUnit: DataTypes.STRING,
     credit: DataTypes.STRING,
     totalHours: DataTypes.STRING,
-    courseType: DataTypes.STRING,
-    examType: DataTypes.STRING
+    examType: DataTypes.STRING,
+    courseAttribute: DataTypes.STRING,
+    isExam: DataTypes.STRING
 }, {
-    tableName: 'Plan',  // 明确指定表名为单数形式
-    timestamps: false   // 不自动添加 createdAt 和 updatedAt 字段
+    tableName: 'Plan',
+    timestamps: false
 });
 
 // 学习进度表

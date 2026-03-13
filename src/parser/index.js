@@ -161,6 +161,14 @@ function parseTimetable(html) {
             // 3: 上课地点
             const rawText = chunkLines.join(' | ');
             const titleLine = chunkLines[0] || '';
+            
+            // 提取课程类型（必修/选修）
+            let courseType = '';
+            const typeMatch = titleLine.match(/\[(必修|选修|必修课|选修课|公共必修|专业必修|专业选修|公共选修)\]/);
+            if (typeMatch) {
+                courseType = typeMatch[1];
+            }
+            
             const name = String(titleLine).replace(/\[.*?\]/g, '').trim() || titleLine.trim();
 
             // 找到“包含节次”的那一行作为时间行
@@ -228,6 +236,7 @@ function parseTimetable(html) {
                 teacher,
                 period: periodStr,
                 location,
+                courseType,
                 raw: rawText
             };
 
@@ -336,6 +345,17 @@ function parseExams(html) {
 
 /**
  * 解析学期计划
+ * HTML表格结构：
+ * tds[0]: 序号
+ * tds[1]: 开课学期
+ * tds[2]: 课程编号
+ * tds[3]: 课程名称
+ * tds[4]: 开课单位
+ * tds[5]: 学分
+ * tds[6]: 总学时
+ * tds[7]: 考核方式
+ * tds[8]: 课程属性（必修/选修）
+ * tds[9]: 是否考试
  */
 function parseSemesterPlan(html) {
     const $ = cheerio.load(html);
@@ -345,15 +365,17 @@ function parseSemesterPlan(html) {
     $table.find('tr').each((i, el) => {
         if (i === 0) return;
         const tds = $(el).find('td');
-        if (tds.length >= 6) {
+        if (tds.length >= 9) {
             const semester = $(tds[1]).text().trim();
             const planItem = {
                 courseCode: $(tds[2]).text().trim(),
                 courseName: $(tds[3]).text().trim(),
-                credit: $(tds[4]).text().trim(),
-                totalHours: $(tds[5]).text().trim(),
-                courseType: $(tds[6]).text().trim(),
-                examType: $(tds[7]).text().trim()
+                teachingUnit: $(tds[4]).text().trim(),
+                credit: $(tds[5]).text().trim(),
+                totalHours: $(tds[6]).text().trim(),
+                examType: $(tds[7]).text().trim(),
+                courseAttribute: $(tds[8]).text().trim(),
+                isExam: $(tds[9]).text().trim()
             };
 
             if (!plansGrouped[semester]) {

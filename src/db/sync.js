@@ -52,6 +52,7 @@ async function syncCourses(studentId, courses) {
             teacher: course.teacher,
             weeks: course.weeks,
             location: course.location,
+            courseType: course.courseType,
             raw: course.raw
         });
     }
@@ -96,8 +97,8 @@ async function syncCourses(studentId, courses) {
     const dedupRows = Array.from(dedupMap.values());
 
     await Course.bulkCreate(dedupRows, {
-        updateOnDuplicate: ['teacher', 'weeks', 'location', 'raw']
-    });
+        updateOnDuplicate: ['teacher', 'weeks', 'location', 'courseType', 'raw']
+        });
 }
 
 /**
