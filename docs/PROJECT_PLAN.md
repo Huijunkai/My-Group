@@ -8,7 +8,7 @@
 ### 1.2 技术栈选择
 *   **前端 (App):** HarmonyOS (API 9+ / API 11+), ArkTS, ArkUI, HTTP Network Kit.
 *   **后端 (Server):** Node.js (Express 或 Koa), Axios (用于转发请求), Cheerio (用于解析 HTML), node-schedule (定时任务).
-*   **数据库 (Database):** MySQL (推荐) 或 MongoDB. 用于存储用户信息(加密)、Cookie/Token、以及缓存的教务数据.
+*   **数据库 (Database):** MariaDB. 用于存储用户信息(加密)、Cookie/Token、以及缓存的教务数据.
 *   **工具:** Postman (接口测试), Git (版本控制).
 
 ### 1.3 系统架构图
@@ -16,14 +16,14 @@
 graph TD
     User[鸿蒙 App 用户] -->|HTTP 请求| NodeServer[Node.js 中间层]
     NodeServer -->|模拟登录/爬虫| JW[强智教务官网]
-    NodeServer <-->|读写缓存/凭证| DB[(MySQL 数据库)]
+    NodeServer <-->|读写缓存/凭证| DB[(MariaDB 数据库)]
     JW -->|HTML 数据| NodeServer
     NodeServer -->|JSON 数据| User
 ```
 
 ---
 
-## 2. 数据库设计 (MySQL 示例)
+## 2. 数据库设计 (MariaDB 示例)
 
 我们需要存储用户的登录凭证（用于自动维持会话）和业务数据（用于离线查看和对比变动）。
 
@@ -149,18 +149,18 @@ export class Request {
 1.  **前端:** 用户在 ArkTS 界面输入学号、密码，点击登录。
 2.  **前端:** 请求 `POST /api/auth/login`。
 3.  **后端:** 接收请求，启动 Puppeteer 或 Axios 请求强智教务系统登录页。
-4.  **后端:** 拿到 Cookie，存入 MySQL `users` 表。
+4.  **后端:** 拿到 Cookie，存入 MariaDB `users` 表。
 5.  **后端:** 生成一个 App 专用的 JWT Token，返回给前端。
 6.  **前端:** 将 JWT 存入 Preferences，跳转主页。
 
 ### 场景二：查询课表 (带缓存策略)
 1.  **前端:** 调用 `GET /api/course/schedule`。
 2.  **后端:**
-    *   **Step 1:** 检查 MySQL `courses` 表是否有该学生本学期数据。
+    *   **Step 1:** 检查 MariaDB `courses` 表是否有该学生本学期数据。
     *   **Step 2 (有数据):** 直接返回数据库 JSON (速度快)。
     *   **Step 3 (无数据或强制刷新):** 读取 `users` 表中的 Cookie，访问教务系统课表 URL。
     *   **Step 4 (Cookie 失效):** 如果教务系统返回“请登录”，后端自动利用加密密码重新模拟登录，更新 Cookie，再次抓取。
-    *   **Step 5:** 解析 HTML，存入 MySQL，返回 JSON 给前端。
+    *   **Step 5:** 解析 HTML，存入 MariaDB，返回 JSON 给前端。
 
 ### 场景三：消息推送 (成绩更新)
 1.  **后端:** 开启 `node-schedule` 定时任务 (例如每 2 小时)。
@@ -178,7 +178,7 @@ export class Request {
 2.  **前端:** 搭建 HarmonyOS 项目，画出登录页和主页 UI。
 
 ### 第二阶段：数据联调 (Week 3-4)
-1.  **后端:** 引入 MySQL，设计 User 和 Course 表。实现登录接口和课表接口。
+1.  **后端:** 引入 MariaDB，设计 User 和 Course 表。实现登录接口和课表接口。
 2.  **前端:** 实现网络请求模块，打通登录和课表显示。
 
 ### 第三阶段：高级功能 (Week 5-6)

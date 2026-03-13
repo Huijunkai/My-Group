@@ -22,7 +22,7 @@ async function getStudentInfo(cookies) {
  */
 async function getTimetable(cookies, semester = '') {
     try {
-        // Railway 上课表页经常会 302 -> 200；axios 自动跟随时可能丢 Cookie/Referer 导致最终变回登录页
+        // 课表页经常会 302 -> 200；axios 自动跟随时可能丢 Cookie/Referer 导致最终变回登录页
         // 这里改成“手动跟随 302”，确保每一步都带上 Cookie
         const maxHops = 5;
         let url = `${BASE_URL}/xskb/xskb_list.do`;

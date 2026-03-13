@@ -11,7 +11,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 端口配置，Railway 会自动注入 PORT 环境变量
 const PORT = process.env.PORT || 3000;
 
 // 初始化数据库
@@ -32,13 +31,12 @@ app.get('/', (req, res) => {
 });
 
 /**
- * 版本/部署信息：用于确认 Railway 是否已部署到最新代码
+ * 版本信息
  * GET /api/version
  */
 app.get('/api/version', (_req, res) => {
     let pkgVersion = 'unknown';
     try {
-        // eslint-disable-next-line global-require
         const pkg = require('./package.json');
         pkgVersion = pkg && pkg.version ? pkg.version : 'unknown';
     } catch (_e) { }
@@ -47,12 +45,6 @@ app.get('/api/version', (_req, res) => {
         name: 'jw-backend',
         version: pkgVersion,
         buildTime: new Date().toISOString(),
-        // Railway 常见注入（不保证存在）
-        railway: {
-            environment: process.env.RAILWAY_ENVIRONMENT || '',
-            service: process.env.RAILWAY_SERVICE_NAME || '',
-            gitCommit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.RAILWAY_GIT_COMMIT || ''
-        },
         features: {
             timetableFollowRedirects: true,
             syncAwaitTimetable: true
