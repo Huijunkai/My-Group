@@ -4,6 +4,7 @@ const cors = require('cors');
 const { login } = require('./src/api/auth');
 const { getStudentInfo, getTimetable, getGrades, getExamSchedule, getSemesterPlan, getStudyProgress } = require('./src/api/student');
 const pushService = require('./src/services/pushService');
+const notificationMonitor = require('./src/services/notificationMonitor');
 
 const app = express();
 app.use(cors());
@@ -12,6 +13,7 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 
 const userPushTokens = new Map();
+const userSessions = new Map();
 
 app.get('/', (req, res) => {
     res.json({ message: '教务系统代理服务已启动', status: 'running', mode: 'proxy-only' });
@@ -97,6 +99,11 @@ app.post('/api/sync', async (req, res) => {
         console.log(`数据获取完成: ${username}`);
         console.log(`数据统计: 课表=${timetableCount}, 成绩=${gradesCount}, 考试=${exams ? exams.length : 0}, 培养计划=${plans ? Object.keys(plans).length : 0}学期, 学分进度=${progress ? progress.length : 0}`);
 
+        userSessions.set(username, {
+            cookies: cookies,
+            lastSync: Date.now()
+        });
+
         return res.json({
             success: true,
             message: '数据获取成功',
@@ -142,6 +149,11 @@ app.post('/api/push/register', async (req, res) => {
         registeredAt: Date.now()
     });
 
+    const session = userSessions.get(studentId);
+    if (session) {
+        notificationMonitor.registerUser(studentId, session.cookies, pushToken);
+    }
+
     console.log(`Push token registered for student: ${studentId}`);
     res.json({ success: true, message: '推送Token注册成功' });
 });
@@ -154,6 +166,7 @@ app.post('/api/push/unregister', async (req, res) => {
     }
 
     userPushTokens.delete(studentId);
+    notificationMonitor.unregisterUser(studentId);
     console.log(`Push token unregistered for student: ${studentId}`);
     res.json({ success: true, message: '推送Token注销成功' });
 });
@@ -183,4 +196,9 @@ app.post('/api/push/test', async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT} (proxy-only mode, no database)`);
     console.log(`Push notifications: ${process.env.HUAWEI_CLIENT_ID ? 'enabled' : 'disabled (no credentials)'}`);
+    
+    if (process.env.HUAWEI_CLIENT_ID) {
+        notificationMonitor.startMonitoring();
+        console.log('Notification monitoring service started');
+    }
 });
