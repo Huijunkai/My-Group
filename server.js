@@ -1,13 +1,17 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { login } = require('./src/api/auth');
 const { getStudentInfo, getTimetable, getGrades, getExamSchedule, getSemesterPlan, getStudyProgress } = require('./src/api/student');
+const pushService = require('./src/services/pushService');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
+
+const userPushTokens = new Map();
 
 app.get('/', (req, res) => {
     res.json({ message: '教务系统代理服务已启动', status: 'running', mode: 'proxy-only' });
@@ -126,6 +130,57 @@ app.get('/api/semester/latest', async (_req, res) => {
     });
 });
 
+app.post('/api/push/register', async (req, res) => {
+    const { studentId, pushToken } = req.body;
+
+    if (!studentId || !pushToken) {
+        return res.status(400).json({ success: false, message: '请提供学号和推送Token' });
+    }
+
+    userPushTokens.set(studentId, {
+        token: pushToken,
+        registeredAt: Date.now()
+    });
+
+    console.log(`Push token registered for student: ${studentId}`);
+    res.json({ success: true, message: '推送Token注册成功' });
+});
+
+app.post('/api/push/unregister', async (req, res) => {
+    const { studentId } = req.body;
+
+    if (!studentId) {
+        return res.status(400).json({ success: false, message: '请提供学号' });
+    }
+
+    userPushTokens.delete(studentId);
+    console.log(`Push token unregistered for student: ${studentId}`);
+    res.json({ success: true, message: '推送Token注销成功' });
+});
+
+app.post('/api/push/test', async (req, res) => {
+    const { studentId, type, title, content } = req.body;
+
+    if (!studentId) {
+        return res.status(400).json({ success: false, message: '请提供学号' });
+    }
+
+    const tokenInfo = userPushTokens.get(studentId);
+    if (!tokenInfo) {
+        return res.status(404).json({ success: false, message: '未找到该用户的推送Token' });
+    }
+
+    const result = await pushService.sendPushNotification(
+        tokenInfo.token,
+        title || '测试通知',
+        content || '这是一条测试消息',
+        type || 'course_change'
+    );
+
+    res.json(result);
+});
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT} (proxy-only mode, no database)`);
+    console.log(`Push notifications: ${process.env.HUAWEI_CLIENT_ID ? 'enabled' : 'disabled (no credentials)'}`);
 });
