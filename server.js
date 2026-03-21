@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const fetch = require('node-fetch');
 const { login } = require('./src/api/auth');
 const { getStudentInfo, getTimetable, getGrades, getExamSchedule, getSemesterPlan, getStudyProgress } = require('./src/api/student');
 const pushService = require('./src/services/pushService');
@@ -191,6 +192,78 @@ app.post('/api/push/test', async (req, res) => {
     );
 
     res.json(result);
+});
+
+app.post('/api/ai/chat', async (req, res) => {
+    const { messages, apiKey, model } = req.body;
+
+    if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({ success: false, message: '请提供消息列表' });
+    }
+
+    if (!apiKey) {
+        return res.status(400).json({ success: false, message: '请提供 API Key' });
+    }
+
+    const selectedModel = model || 'MiniMax-M2.5';
+    const SCNET_URL = 'https://api.scnet.cn/api/llm/v1/chat/completions';
+
+    try {
+        const requestBody = {
+            model: selectedModel,
+            messages: messages,
+            temperature: 0.7
+        };
+
+        console.log(`AI Proxy: Requesting scnet (${selectedModel})...`);
+        console.log(`AI Proxy: API Key (first 10 chars): ${apiKey ? apiKey.substring(0, 10) + '...' : 'EMPTY'}`);
+        
+        const response = await fetch(SCNET_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`AI Proxy: API error ${response.status}: ${errorText}`);
+            
+            let errorMessage = `AI API 错误: ${response.status}`;
+            try {
+                const errorJson = JSON.parse(errorText);
+                if (errorJson.error?.message) {
+                    errorMessage = errorJson.error.message;
+                } else if (errorJson.message) {
+                    errorMessage = errorJson.message;
+                }
+            } catch (e) {
+                // 无法解析为 JSON，使用默认消息
+            }
+            
+            return res.json({ 
+                success: false, 
+                message: errorMessage,
+                details: errorText,
+                statusCode: response.status
+            });
+        }
+
+        const result = await response.json();
+        console.log(`AI Proxy: Success from scnet (${selectedModel})`);
+
+        const content = result.choices?.[0]?.message?.content || '';
+
+        res.json({ success: true, content: content });
+    } catch (error) {
+        console.error('AI Proxy error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'AI 请求失败: ' + (error.message || String(error))
+        });
+    }
 });
 
 app.listen(PORT, '0.0.0.0', () => {
