@@ -1,11 +1,15 @@
 const pushService = require('./pushService');
 const { getGrades, getExamSchedule, getTimetable } = require('../api/student');
+const { getAnnouncements } = require('../api/announcement');
 
 const userGradeCache = new Map();
 const userExamCache = new Map();
 const userTimetableCache = new Map();
+const knownAnnouncementIds = new Set();
 
 const CHECK_INTERVAL = 30 * 60 * 1000;
+const ANNOUNCEMENT_CHECK_INTERVAL = 10 * 60 * 1000;
+const KEYWORDS = ['重修', '补考', '体测', '选课', '补修', '免修'];
 
 function startMonitoring() {
     console.log('NotificationMonitor: Starting notification monitoring service...');
@@ -14,7 +18,12 @@ function startMonitoring() {
         await checkAllUsers();
     }, CHECK_INTERVAL);
     
+    setInterval(async () => {
+        await checkAnnouncements();
+    }, ANNOUNCEMENT_CHECK_INTERVAL);
+    
     checkAllUsers();
+    checkAnnouncements();
 }
 
 const monitoredUsers = new Map();
@@ -253,12 +262,48 @@ function getDayName(dayOfWeek) {
     return days[dayOfWeek] || '';
 }
 
+async function checkAnnouncements() {
+    try {
+        console.log('NotificationMonitor: Checking for new announcements...');
+        const announcements = await getAnnouncements(20);
+        
+        if (!announcements || announcements.length === 0) {
+            return;
+        }
+        
+        for (const announcement of announcements) {
+            const announcementId = announcement.url || announcement.title;
+            
+            if (!knownAnnouncementIds.has(announcementId)) {
+                knownAnnouncementIds.add(announcementId);
+                
+                for (const keyword of KEYWORDS) {
+                    if (announcement.title.includes(keyword)) {
+                        console.log(`NotificationMonitor: Found keyword "${keyword}" in announcement: ${announcement.title}`);
+                        await pushService.notifyAnnouncement(announcement.title, keyword, announcement.url);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (knownAnnouncementIds.size > 100) {
+            const idsArray = Array.from(knownAnnouncementIds);
+            knownAnnouncementIds.clear();
+            idsArray.slice(-50).forEach(id => knownAnnouncementIds.add(id));
+        }
+    } catch (error) {
+        console.error('NotificationMonitor: Error checking announcements:', error.message);
+    }
+}
+
 function getMonitoringStats() {
     return {
         monitoredUsers: monitoredUsers.size,
         cachedGrades: userGradeCache.size,
         cachedExams: userExamCache.size,
-        cachedTimetables: userTimetableCache.size
+        cachedTimetables: userTimetableCache.size,
+        knownAnnouncements: knownAnnouncementIds.size
     };
 }
 
@@ -267,5 +312,6 @@ module.exports = {
     registerUser,
     unregisterUser,
     checkAllUsers,
+    checkAnnouncements,
     getMonitoringStats
 };

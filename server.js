@@ -4,6 +4,8 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 const { login } = require('./src/api/auth');
 const { getStudentInfo, getTimetable, getGrades, getExamSchedule, getSemesterPlan, getStudyProgress } = require('./src/api/student');
+const { getAnnouncements, getAnnouncementDetail } = require('./src/api/announcement');
+const { getCampuses, getBuildings, queryEmptyRooms, queryRoomSchedule } = require('./src/api/emptyroom');
 const pushService = require('./src/services/pushService');
 const notificationMonitor = require('./src/services/notificationMonitor');
 
@@ -192,6 +194,215 @@ app.post('/api/push/test', async (req, res) => {
     );
 
     res.json(result);
+});
+
+app.get('/api/announcements', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 5;
+        const announcements = await getAnnouncements(limit);
+        res.json({
+            success: true,
+            data: announcements
+        });
+    } catch (error) {
+        console.error('获取公告失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取公告失败: ' + error.message
+        });
+    }
+});
+
+app.get('/api/emptyroom/campuses', async (_req, res) => {
+    try {
+        const campuses = await getCampuses();
+        res.json({
+            success: true,
+            data: campuses
+        });
+    } catch (error) {
+        console.error('获取校区失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取校区失败: ' + error.message
+        });
+    }
+});
+
+app.get('/api/emptyroom/buildings', async (req, res) => {
+    try {
+        const { campus } = req.query;
+        
+        let cookies = null;
+        for (const [sid, sess] of userSessions) {
+            if (sess.cookies) {
+                cookies = sess.cookies;
+                break;
+            }
+        }
+        
+        const buildings = await getBuildings(cookies, campus);
+        res.json({
+            success: true,
+            data: buildings
+        });
+    } catch (error) {
+        console.error('获取教学楼失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取教学楼失败: ' + error.message
+        });
+    }
+});
+
+app.post('/api/emptyroom/query', async (req, res) => {
+    try {
+        const { semester, campus, building, weekStart, weekEnd, periodStart, periodEnd } = req.body;
+        
+        if (!semester) {
+            return res.status(400).json({
+                success: false,
+                message: '请提供学期参数'
+            });
+        }
+
+        const studentId = req.body.studentId || 'guest';
+        let cookies = null;
+        
+        const session = userSessions.get(studentId);
+        if (session && session.cookies) {
+            cookies = session.cookies;
+        } else {
+            for (const [sid, sess] of userSessions) {
+                if (sess.cookies) {
+                    cookies = sess.cookies;
+                    break;
+                }
+            }
+        }
+        
+        if (!cookies) {
+            return res.status(401).json({
+                success: false,
+                message: '请先登录'
+            });
+        }
+
+        const rooms = await queryEmptyRooms(cookies, {
+            semester,
+            campus,
+            building,
+            weekStart,
+            weekEnd,
+            periodStart,
+            periodEnd
+        });
+        
+        res.json({
+            success: true,
+            data: rooms
+        });
+    } catch (error) {
+        console.error('查询空教室失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '查询空教室失败: ' + error.message
+        });
+    }
+});
+
+app.post('/api/emptyroom/schedule', async (req, res) => {
+    try {
+        const { roomName, semester, campus, building, weekStart, weekEnd, periodStart, periodEnd } = req.body;
+        
+        if (!roomName) {
+            return res.status(400).json({
+                success: false,
+                message: '请提供教室名称'
+            });
+        }
+
+        const studentId = req.body.studentId || 'guest';
+        let cookies = null;
+        
+        const session = userSessions.get(studentId);
+        if (session && session.cookies) {
+            cookies = session.cookies;
+        } else {
+            for (const [sid, sess] of userSessions) {
+                if (sess.cookies) {
+                    cookies = sess.cookies;
+                    break;
+                }
+            }
+        }
+        
+        if (!cookies) {
+            return res.status(401).json({
+                success: false,
+                message: '请先登录'
+            });
+        }
+
+        const schedule = await queryRoomSchedule(cookies, {
+            roomName,
+            semester,
+            campus,
+            building,
+            weekStart,
+            weekEnd,
+            periodStart,
+            periodEnd
+        });
+        
+        if (schedule) {
+            res.json({
+                success: true,
+                data: schedule
+            });
+        } else {
+            res.json({
+                success: false,
+                message: '未找到该教室'
+            });
+        }
+    } catch (error) {
+        console.error('查询教室课表失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '查询教室课表失败: ' + error.message
+        });
+    }
+});
+
+app.get('/api/announcements/detail', async (req, res) => {
+    try {
+        const { url } = req.query;
+        if (!url) {
+            return res.status(400).json({
+                success: false,
+                message: '请提供公告URL'
+            });
+        }
+        const detail = await getAnnouncementDetail(url);
+        if (detail) {
+            res.json({
+                success: true,
+                data: detail
+            });
+        } else {
+            res.status(404).json({
+                success: false,
+                message: '未找到公告详情'
+            });
+        }
+    } catch (error) {
+        console.error('获取公告详情失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取公告详情失败: ' + error.message
+        });
+    }
 });
 
 app.post('/api/ai/chat', async (req, res) => {
