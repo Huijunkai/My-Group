@@ -6,6 +6,7 @@ const { login } = require('./src/api/auth');
 const { getStudentInfo, getTimetable, getGrades, getExamSchedule, getSemesterPlan, getStudyProgress } = require('./src/api/student');
 const { getAnnouncements, getAnnouncementDetail } = require('./src/api/announcement');
 const { getCampuses, getBuildings, queryEmptyRooms, queryRoomSchedule } = require('./src/api/emptyroom');
+const xyyxt = require('./src/xyyxt');
 const pushService = require('./src/services/pushService');
 const notificationMonitor = require('./src/services/notificationMonitor');
 
@@ -401,6 +402,315 @@ app.get('/api/announcements/detail', async (req, res) => {
         res.status(500).json({
             success: false,
             message: '获取公告详情失败: ' + error.message
+        });
+    }
+});
+
+app.post('/api/xyyxt/login', async (req, res) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({ success: false, message: '请提供账号和密码' });
+    }
+
+    try {
+        console.log(`校园一信通登录: ${username}`);
+        const result = await xyyxt.login(username, password);
+
+        if (result.success) {
+            userSessions.set(`xyyxt_${username}`, {
+                accessToken: result.data.access_token,
+                refreshToken: result.data.refresh_token,
+                schoolId: result.data.schoolId,
+                userId: result.data.userId,
+                lastSync: Date.now()
+            });
+
+            return res.json({
+                success: true,
+                message: '登录成功',
+                data: result.data
+            });
+        } else {
+            return res.status(401).json({
+                success: false,
+                message: result.message || '登录失败'
+            });
+        }
+    } catch (error) {
+        console.error('校园一信通登录错误:', error);
+        res.status(500).json({
+            success: false,
+            message: '登录失败: ' + error.message
+        });
+    }
+});
+
+app.get('/api/xyyxt/userinfo', async (req, res) => {
+    const { username } = req.query;
+
+    if (!username) {
+        return res.status(400).json({ success: false, message: '请提供账号' });
+    }
+
+    const session = userSessions.get(`xyyxt_${username}`);
+    if (!session) {
+        return res.status(401).json({ success: false, message: '请先登录' });
+    }
+
+    try {
+        const userInfo = await xyyxt.getUserInfo(session.accessToken);
+        res.json({
+            success: true,
+            data: userInfo
+        });
+    } catch (error) {
+        console.error('获取用户信息失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取用户信息失败: ' + error.message
+        });
+    }
+});
+
+app.get('/api/xyyxt/balance', async (req, res) => {
+    const { username } = req.query;
+
+    if (!username) {
+        return res.status(400).json({ success: false, message: '请提供账号' });
+    }
+
+    const session = userSessions.get(`xyyxt_${username}`);
+    if (!session) {
+        return res.status(401).json({ success: false, message: '请先登录' });
+    }
+
+    try {
+        const balance = await xyyxt.getBalance(session.accessToken);
+        res.json({
+            success: true,
+            data: balance
+        });
+    } catch (error) {
+        console.error('获取余额失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取余额失败: ' + error.message
+        });
+    }
+});
+
+app.get('/api/xyyxt/transactions', async (req, res) => {
+    const { username, page, size } = req.query;
+
+    if (!username) {
+        return res.status(400).json({ success: false, message: '请提供账号' });
+    }
+
+    const session = userSessions.get(`xyyxt_${username}`);
+    if (!session) {
+        return res.status(401).json({ success: false, message: '请先登录' });
+    }
+
+    try {
+        const transactions = await xyyxt.getTransactions(
+            session.accessToken,
+            parseInt(page) || 1,
+            parseInt(size) || 20
+        );
+        res.json({
+            success: true,
+            data: transactions
+        });
+    } catch (error) {
+        console.error('获取交易记录失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取交易记录失败: ' + error.message
+        });
+    }
+});
+
+app.get('/api/xyyxt/consumption', async (req, res) => {
+    const { username, page, size } = req.query;
+
+    if (!username) {
+        return res.status(400).json({ success: false, message: '请提供账号' });
+    }
+
+    const session = userSessions.get(`xyyxt_${username}`);
+    if (!session) {
+        return res.status(401).json({ success: false, message: '请先登录' });
+    }
+
+    try {
+        const consumption = await xyyxt.getConsumptionRecords(
+            session.accessToken,
+            parseInt(page) || 1,
+            parseInt(size) || 20
+        );
+        res.json({
+            success: true,
+            data: consumption.data,
+            total: consumption.total,
+            pages: consumption.pages,
+            current: consumption.current
+        });
+    } catch (error) {
+        console.error('获取消费记录失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取消费记录失败: ' + error.message
+        });
+    }
+});
+
+app.get('/api/xyyxt/recharge', async (req, res) => {
+    const { username, page, size } = req.query;
+
+    if (!username) {
+        return res.status(400).json({ success: false, message: '请提供账号' });
+    }
+
+    const session = userSessions.get(`xyyxt_${username}`);
+    if (!session) {
+        return res.status(401).json({ success: false, message: '请先登录' });
+    }
+
+    try {
+        const recharge = await xyyxt.getRechargeRecords(
+            session.accessToken,
+            parseInt(page) || 1,
+            parseInt(size) || 20
+        );
+        res.json({
+            success: true,
+            data: recharge.data,
+            total: recharge.total,
+            pages: recharge.pages,
+            current: recharge.current
+        });
+    } catch (error) {
+        console.error('获取充值记录失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取充值记录失败: ' + error.message
+        });
+    }
+});
+
+app.get('/api/xyyxt/buildings', async (req, res) => {
+    const { username, areaId } = req.query;
+
+    if (!username) {
+        return res.status(400).json({ success: false, message: '请提供账号' });
+    }
+
+    const session = userSessions.get(`xyyxt_${username}`);
+    if (!session) {
+        return res.status(401).json({ success: false, message: '请先登录' });
+    }
+
+    try {
+        const buildings = await xyyxt.getBuildings(session.accessToken, areaId);
+        res.json({
+            success: true,
+            data: buildings
+        });
+    } catch (error) {
+        console.error('获取宿舍楼失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取宿舍楼失败: ' + error.message
+        });
+    }
+});
+
+app.get('/api/xyyxt/rooms', async (req, res) => {
+    const { username, buildingId, areaId } = req.query;
+
+    if (!username || !buildingId) {
+        return res.status(400).json({ success: false, message: '请提供账号和楼栋ID' });
+    }
+
+    const session = userSessions.get(`xyyxt_${username}`);
+    if (!session) {
+        return res.status(401).json({ success: false, message: '请先登录' });
+    }
+
+    try {
+        const rooms = await xyyxt.getRooms(session.accessToken, buildingId, areaId);
+        res.json({
+            success: true,
+            data: rooms
+        });
+    } catch (error) {
+        console.error('获取宿舍房间失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取宿舍房间失败: ' + error.message
+        });
+    }
+});
+
+app.get('/api/xyyxt/rooms/all', async (req, res) => {
+    const { username, buildingId, areaId } = req.query;
+
+    if (!username) {
+        return res.status(400).json({ success: false, message: '请提供账号' });
+    }
+
+    const session = userSessions.get(`xyyxt_${username}`);
+    if (!session) {
+        return res.status(401).json({ success: false, message: '请先登录' });
+    }
+
+    try {
+        if (buildingId) {
+            const rooms = await xyyxt.getAllRoomsByBuilding(session.accessToken, buildingId, areaId || 'nnxq');
+            res.json({
+                success: true,
+                data: rooms
+            });
+        } else {
+            const allRooms = await xyyxt.getAllBuildingsRooms(session.accessToken, areaId || 'nnxq');
+            res.json({
+                success: true,
+                data: allRooms
+            });
+        }
+    } catch (error) {
+        console.error('获取所有房间失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取所有房间失败: ' + error.message
+        });
+    }
+});
+
+app.get('/api/xyyxt/electricity', async (req, res) => {
+    const { username, roomId, areaId } = req.query;
+
+    if (!username || !roomId) {
+        return res.status(400).json({ success: false, message: '请提供账号和房间ID' });
+    }
+
+    const session = userSessions.get(`xyyxt_${username}`);
+    if (!session) {
+        return res.status(401).json({ success: false, message: '请先登录' });
+    }
+
+    try {
+        const electricity = await xyyxt.getElectricity(session.accessToken, roomId, areaId || '');
+        res.json({
+            success: true,
+            data: electricity
+        });
+    } catch (error) {
+        console.error('获取电费余额失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取电费余额失败: ' + error.message
         });
     }
 });
