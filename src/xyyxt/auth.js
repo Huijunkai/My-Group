@@ -1,4 +1,4 @@
-const { BASE_URL, AUTH_URL, ELEC_URL, ELEC_URL_NANNING, ELEC_URL_GUILIN, BASIC_AUTH, DEFAULT_HEADERS, CAMPUS_CONFIG } = require('./constants');
+const { BASE_URL, AUTH_URL, ELEC_URL, ELEC_URL_NANNING, ELEC_URL_GUILIN, BASIC_AUTH, DEFAULT_HEADERS, CAMPUS_CONFIG, GUILIN_SERVER_1, GUILIN_SERVER_2, GUILIN_BUILDING_SERVER_MAP } = require('./constants');
 const axios = require('axios');
 const FormData = require('form-data');
 
@@ -39,25 +39,56 @@ const NANNING_BUILDING_URL_MAP = {
     'B19': NANNING_ELEC_URL_2
 };
 
-function getElecUrlForRoom(areaId = '', roomId = '') {
-    if (areaId === 'nnxq' && roomId) {
-        for (const [buildingId, url] of Object.entries(NANNING_BUILDING_URL_MAP)) {
-            if (roomId.startsWith('H' + buildingId)) {
-                return url;
+function getElecUrlForRoom(areaId = '', roomId = '', buildingId = '') {
+    if (areaId === 'nnxq') {
+        if (buildingId && NANNING_BUILDING_URL_MAP[buildingId]) {
+            return NANNING_BUILDING_URL_MAP[buildingId];
+        }
+        
+        if (roomId) {
+            for (const [bid, url] of Object.entries(NANNING_BUILDING_URL_MAP)) {
+                if (roomId.startsWith('H' + bid)) {
+                    return url;
+                }
+            }
+            for (const [bid, url] of Object.entries(NANNING_BUILDING_URL_MAP)) {
+                if (roomId.includes(bid)) {
+                    return url;
+                }
+            }
+        }
+        
+        console.warn(`[getElecUrlForRoom] 无法确定南宁校区楼栋服务器，buildingId: ${buildingId}, roomId: ${roomId}`);
+        return NANNING_ELEC_URL_2;
+    }
+    
+    if (areaId === 'glxq' && roomId) {
+        for (const [buildingId, serverUrl] of Object.entries(GUILIN_BUILDING_SERVER_MAP)) {
+            if (roomId.includes(buildingId) || roomId.startsWith('H' + buildingId)) {
+                return serverUrl;
             }
         }
         if (roomId.startsWith('H') && roomId.length === 5) {
-            return NANNING_ELEC_URL_1;
+            return GUILIN_SERVER_1;
         }
         if (roomId.startsWith('H') && roomId.length === 4) {
-            return NANNING_ELEC_URL_2;
+            return GUILIN_SERVER_2;
+        }
+    }
+    
+    if (!areaId && roomId) {
+        for (const [buildingId, serverUrl] of Object.entries(GUILIN_BUILDING_SERVER_MAP)) {
+            if (roomId.includes(buildingId) || roomId.startsWith('H' + buildingId)) {
+                return serverUrl;
+            }
         }
         for (const [buildingId, url] of Object.entries(NANNING_BUILDING_URL_MAP)) {
-            if (roomId.includes(buildingId)) {
+            if (roomId.startsWith('H' + buildingId) || roomId.includes(buildingId)) {
                 return url;
             }
         }
     }
+    
     return getElecUrl(areaId);
 }
 
@@ -329,6 +360,7 @@ const NANNING_BUILDINGS = [
     { loudong_id: 'B5', loudong_name: '5号楼' },
     { loudong_id: 'B6', loudong_name: '6号楼' },
     { loudong_id: 'B7', loudong_name: '7号楼' },
+    { loudong_id: 'B8', loudong_name: '8号楼' },
     { loudong_id: 'B9', loudong_name: '9号楼' },
     { loudong_id: 'B10', loudong_name: '10号楼' },
     { loudong_id: 'B11', loudong_name: '11号楼' },
@@ -626,10 +658,10 @@ async function getAllBuildingsRooms(accessToken, areaId = 'nnxq') {
     return result;
 }
 
-async function getElectricity(accessToken, roomId, areaId = '') {
+async function getElectricity(accessToken, roomId, areaId = '', buildingId = '') {
     try {
-        const elecUrl = getElecUrlForRoom(areaId, roomId);
-        console.log(`[电费查询] roomId: ${roomId}, areaId: ${areaId}, elecUrl: ${elecUrl}`);
+        const elecUrl = getElecUrlForRoom(areaId, roomId, buildingId);
+        console.log(`[电费查询] roomId: ${roomId}, areaId: ${areaId}, buildingId: ${buildingId}, elecUrl: ${elecUrl}`);
         const headers = {
             ...DEFAULT_HEADERS,
             'Authorization': `bearer ${accessToken}`,

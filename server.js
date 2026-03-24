@@ -689,7 +689,7 @@ app.get('/api/xyyxt/rooms/all', async (req, res) => {
 });
 
 app.get('/api/xyyxt/electricity', async (req, res) => {
-    const { username, roomId, areaId } = req.query;
+    const { username, roomId, areaId, buildingId } = req.query;
 
     if (!username || !roomId) {
         return res.status(400).json({ success: false, message: '请提供账号和房间ID' });
@@ -701,7 +701,7 @@ app.get('/api/xyyxt/electricity', async (req, res) => {
     }
 
     try {
-        const electricity = await xyyxt.getElectricity(session.accessToken, roomId, areaId || '');
+        const electricity = await xyyxt.getElectricity(session.accessToken, roomId, areaId || '', buildingId || '');
         res.json({
             success: true,
             data: electricity
