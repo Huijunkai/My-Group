@@ -9,75 +9,51 @@ function getElecUrl(areaId = '') {
     return ELEC_URL;
 }
 
-const GUILIN_ELEC_URL_1 = 'http://221.7.150.22:10005';
-const GUILIN_ELEC_URL_2 = 'http://221.7.150.20:10004';
-const GUILIN_ELEC_URL_3 = 'http://202.103.236.36:10001';
+const NANNING_ELEC_URL_1 = 'http://202.103.236.36:10002';
 
-const GUILIN_ROOM_URL_1 = 'http://221.7.150.22:10005';
-const GUILIN_ROOM_URL_2 = 'http://221.7.150.20:10004';
-const GUILIN_ROOM_URL_3 = 'http://202.103.236.36:10001';
-
-const GUILIN_BUILDING_URL_MAP = {
-    '4320': GUILIN_ROOM_URL_1,
-    '4509': GUILIN_ROOM_URL_1,
-    '4722': GUILIN_ROOM_URL_1,
-    '4812': GUILIN_ROOM_URL_1,
-    '6436': GUILIN_ROOM_URL_1,
-    '6819': GUILIN_ROOM_URL_1,
-    'B101': GUILIN_ROOM_URL_2,
-    'B102': GUILIN_ROOM_URL_2,
-    'B8': GUILIN_ROOM_URL_2
-};
-
-const NANNING_ELEC_URL = 'http://202.103.236.36:10001';
+const NANNING_ELEC_URL_2 = 'http://202.103.236.36:10001';
 
 const NANNING_BUILDING_URL_MAP = {
-    '4320': NANNING_ELEC_URL,
-    '4523': NANNING_ELEC_URL,
-    '4722': NANNING_ELEC_URL,
-    '5158': NANNING_ELEC_URL,
-    '5623': NANNING_ELEC_URL,
-    '6068': NANNING_ELEC_URL,
-    '6267': NANNING_ELEC_URL,
-    '6454': NANNING_ELEC_URL,
-    '6899': NANNING_ELEC_URL,
-    'B1': NANNING_ELEC_URL,
-    'B2': NANNING_ELEC_URL,
-    'B3': NANNING_ELEC_URL,
-    'B4': NANNING_ELEC_URL,
-    'B5': NANNING_ELEC_URL,
-    'B6': NANNING_ELEC_URL,
-    'B7': NANNING_ELEC_URL,
-    'B8': NANNING_ELEC_URL,
-    'B9': NANNING_ELEC_URL,
-    'B10': NANNING_ELEC_URL,
-    'B11': NANNING_ELEC_URL,
-    'B12': NANNING_ELEC_URL,
-    'B16': NANNING_ELEC_URL,
-    'B19': NANNING_ELEC_URL,
-    'B20': NANNING_ELEC_URL,
-    'B21': NANNING_ELEC_URL,
-    'B22': NANNING_ELEC_URL,
-    'B23': NANNING_ELEC_URL,
-    'B24': NANNING_ELEC_URL,
-    'B25': NANNING_ELEC_URL
-};
-
-const GUILIN_ELEC_PREFIX_MAP = {
-    'H432': GUILIN_ELEC_URL_1,
-    'H450': GUILIN_ELEC_URL_1,
-    'H472': GUILIN_ELEC_URL_1,
-    'H481': GUILIN_ELEC_URL_1,
-    'H643': GUILIN_ELEC_URL_1,
-    'H681': GUILIN_ELEC_URL_1,
-    'HB10': GUILIN_ELEC_URL_2,
-    'HB8': GUILIN_ELEC_URL_2
+    '4320': NANNING_ELEC_URL_1,
+    '4523': NANNING_ELEC_URL_1,
+    '4722': NANNING_ELEC_URL_1,
+    '5158': NANNING_ELEC_URL_1,
+    '5623': NANNING_ELEC_URL_1,
+    '6068': NANNING_ELEC_URL_1,
+    '6267': NANNING_ELEC_URL_1,
+    '6454': NANNING_ELEC_URL_1,
+    '6899': NANNING_ELEC_URL_1,
+    'B1': NANNING_ELEC_URL_2,
+    'B2': NANNING_ELEC_URL_2,
+    'B3': NANNING_ELEC_URL_2,
+    'B4': NANNING_ELEC_URL_2,
+    'B5': NANNING_ELEC_URL_2,
+    'B6': NANNING_ELEC_URL_2,
+    'B7': NANNING_ELEC_URL_2,
+    'B8': NANNING_ELEC_URL_2,
+    'B9': NANNING_ELEC_URL_2,
+    'B10': NANNING_ELEC_URL_2,
+    'B11': NANNING_ELEC_URL_2,
+    'B12': NANNING_ELEC_URL_2,
+    'B16': NANNING_ELEC_URL_2,
+    'B19': NANNING_ELEC_URL_2
 };
 
 function getElecUrlForRoom(areaId = '', roomId = '') {
-    if (areaId === 'glxq' && roomId) {
-        for (const [prefix, url] of Object.entries(GUILIN_ELEC_PREFIX_MAP)) {
-            if (roomId.startsWith(prefix)) {
+    if (areaId === 'nnxq' && roomId) {
+        for (const [buildingId, url] of Object.entries(NANNING_BUILDING_URL_MAP)) {
+            if (roomId.startsWith('H' + buildingId)) {
+                return url;
+            }
+        }
+        if (roomId.startsWith('H') && roomId.length === 5) {
+            return NANNING_ELEC_URL_1;
+        }
+        if (roomId.startsWith('H') && roomId.length === 4) {
+            return NANNING_ELEC_URL_2;
+        }
+        for (const [buildingId, url] of Object.entries(NANNING_BUILDING_URL_MAP)) {
+            if (roomId.includes(buildingId)) {
                 return url;
             }
         }
@@ -86,9 +62,6 @@ function getElecUrlForRoom(areaId = '', roomId = '') {
 }
 
 function getRoomUrl(areaId = '', buildingId = '') {
-    if (areaId === 'glxq' && buildingId && GUILIN_BUILDING_URL_MAP[buildingId]) {
-        return GUILIN_BUILDING_URL_MAP[buildingId];
-    }
     if (areaId === 'nnxq' && buildingId && NANNING_BUILDING_URL_MAP[buildingId]) {
         return NANNING_BUILDING_URL_MAP[buildingId];
     }
@@ -339,18 +312,6 @@ async function getRechargeRecords(accessToken, page = 1, size = 20, timeRange = 
     }
 }
 
-const GUILIN_BUILDINGS = [
-    { loudong_id: '4320', loudong_name: '9栋' },
-    { loudong_id: '4509', loudong_name: '7栋' },
-    { loudong_id: '4722', loudong_name: '12栋' },
-    { loudong_id: '4812', loudong_name: '13栋' },
-    { loudong_id: '6436', loudong_name: '14A栋' },
-    { loudong_id: '6819', loudong_name: '14B栋' },
-    { loudong_id: 'B101', loudong_name: '10A栋' },
-    { loudong_id: 'B102', loudong_name: '10B栋' },
-    { loudong_id: 'B8', loudong_name: '8栋' }
-];
-
 const NANNING_BUILDINGS = [
     { loudong_id: '4320', loudong_name: '15-1栋' },
     { loudong_id: '4523', loudong_name: '15-2栋' },
@@ -373,21 +334,11 @@ const NANNING_BUILDINGS = [
     { loudong_id: 'B11', loudong_name: '11号楼' },
     { loudong_id: 'B12', loudong_name: '12号楼' },
     { loudong_id: 'B16', loudong_name: '16号楼' },
-    { loudong_id: 'B19', loudong_name: '14号楼' },
-    { loudong_id: 'B20', loudong_name: '致远楼一单元' },
-    { loudong_id: 'B21', loudong_name: '致远楼二单元' },
-    { loudong_id: 'B22', loudong_name: '德馨楼一单元' },
-    { loudong_id: 'B23', loudong_name: '德馨楼二单元' },
-    { loudong_id: 'B24', loudong_name: '博雅楼一单元' },
-    { loudong_id: 'B25', loudong_name: '博雅楼二单元' }
+    { loudong_id: 'B19', loudong_name: '14号楼' }
 ];
 
 async function getBuildings(accessToken, areaId = '') {
     try {
-        if (areaId === 'glxq') {
-            return GUILIN_BUILDINGS;
-        }
-        
         if (areaId === 'nnxq') {
             const roomUrl = getRoomUrl(areaId);
             const headers = {
@@ -480,60 +431,6 @@ async function getRooms(accessToken, buildingId, areaId = '', page = 1, size = 1
     }
 }
 
-async function getGuilinRooms(accessToken, buildingId, page = 1, size = 100) {
-    const roomUrl = getRoomUrl('glxq', buildingId);
-    const headers = {
-        ...DEFAULT_HEADERS,
-        'Authorization': `bearer ${accessToken}`,
-        'Content-Type': 'multipart/form-data'
-    };
-    
-    const tryParams = [
-        { dormitoryBdId: buildingId },
-        { loudong_id: buildingId },
-        { buildingId: buildingId },
-        { id: buildingId }
-    ];
-    
-    for (const params of tryParams) {
-        try {
-            const formData = new FormData();
-            for (const [key, value] of Object.entries(params)) {
-                formData.append(key, value);
-            }
-            formData.append('current', page);
-            formData.append('size', size);
-            
-            console.log(`尝试桂林房间查询 URL: ${roomUrl}/v1/cgElec/room/query, 参数: ${JSON.stringify(params)}`);
-            
-            const response = await axios.post(`${roomUrl}/v1/cgElec/room/query`, formData, {
-                headers,
-                timeout: 10000
-            });
-            
-            console.log(`响应状态: ${response.status}, 数据: ${JSON.stringify(response.data).substring(0, 500)}`);
-            
-            if (response.data && response.data.data && response.data.data.length > 0) {
-                console.log(`成功获取 ${response.data.data.length} 个房间`);
-                return {
-                    data: response.data.data,
-                    total: response.data.total || response.data.data.length,
-                    pages: response.data.pages || 1,
-                    current: response.data.current || page
-                };
-            }
-        } catch (error) {
-            console.error(`参数 ${JSON.stringify(params)} 失败:`, error.message);
-            if (error.response) {
-                console.error(`响应状态: ${error.response.status}, 数据: ${JSON.stringify(error.response.data)}`);
-            }
-        }
-    }
-    
-    console.log(`桂林校区 ${buildingId} API查询失败，使用硬编码数据`);
-    return { data: [], total: 0, pages: 0, current: page };
-}
-
 async function getNanningRooms(accessToken, buildingId, page = 1, size = 100) {
     const roomUrl = getRoomUrl('nnxq', buildingId);
     const headers = {
@@ -615,7 +512,7 @@ async function getRoomsByDormitoryBdId(accessToken, dormitoryBdId, areaId = '') 
     }
 }
 
-function generateGuilinRooms(prefix, buildingName, floors, roomsPerFloor) {
+function generateRooms(prefix, buildingName, floors, roomsPerFloor) {
     const rooms = [];
     for (let floor = 1; floor <= floors; floor++) {
         for (let room = 1; room <= roomsPerFloor; room++) {
@@ -628,80 +525,33 @@ function generateGuilinRooms(prefix, buildingName, floors, roomsPerFloor) {
     return rooms;
 }
 
-const GUILIN_BUILDING_ROOMS = {
-    '4320': generateGuilinRooms('H432', '9栋', 6, 20),
-    '4509': generateGuilinRooms('H450', '7栋', 6, 20),
-    '4722': generateGuilinRooms('H472', '12栋', 6, 20),
-    '4812': generateGuilinRooms('H481', '13栋', 10, 20),
-    '6436': generateGuilinRooms('H643', '14A栋', 10, 20),
-    '6819': generateGuilinRooms('H681', '14B栋', 10, 20),
-    'B101': generateGuilinRooms('HB101', '10A-', 6, 20),
-    'B102': generateGuilinRooms('HB102', '10B-', 6, 20),
-    'B8': generateGuilinRooms('HB8', '8-', 6, 20)
-};
-
 const NANNING_BUILDING_ROOMS = {
-    '4320': generateGuilinRooms('H', '15-1-', 6, 20),
-    '4523': generateGuilinRooms('H', '15-2-', 6, 20),
-    '4722': generateGuilinRooms('H', '13-1-', 6, 20),
-    '5158': generateGuilinRooms('H', '13-2-', 6, 20),
-    '5623': generateGuilinRooms('H', '17-', 6, 20),
-    '6068': generateGuilinRooms('H', '18-', 6, 20),
-    '6267': generateGuilinRooms('H', '19-', 6, 20),
-    '6454': generateGuilinRooms('H', '20-', 6, 20),
-    '6899': generateGuilinRooms('H', '21-', 6, 20),
-    'B1': generateGuilinRooms('H', '1-', 6, 20),
-    'B2': generateGuilinRooms('H', '2-', 6, 20),
-    'B3': generateGuilinRooms('H', '3-', 6, 20),
-    'B4': generateGuilinRooms('H', '4-', 6, 20),
-    'B5': generateGuilinRooms('H', '5-', 6, 20),
-    'B6': generateGuilinRooms('H', '6-', 6, 20),
-    'B7': generateGuilinRooms('H', '7-', 6, 20),
-    'B8': generateGuilinRooms('H', '8-', 6, 20),
-    'B9': generateGuilinRooms('H', '9-', 6, 20),
-    'B10': generateGuilinRooms('H', '10-', 6, 20),
-    'B11': generateGuilinRooms('H', '11-', 6, 20),
-    'B12': generateGuilinRooms('H', '12-', 6, 20),
-    'B16': generateGuilinRooms('H', '16-', 6, 20),
-    'B19': generateGuilinRooms('H14', '14-', 10, 20),
-    'B20': generateGuilinRooms('H', '致远楼一单元-', 6, 20),
-    'B21': generateGuilinRooms('H', '致远楼二单元-', 6, 20),
-    'B22': generateGuilinRooms('H', '德馨楼一单元-', 6, 20),
-    'B23': generateGuilinRooms('H', '德馨楼二单元-', 6, 20),
-    'B24': generateGuilinRooms('H', '博雅楼一单元-', 6, 20),
-    'B25': generateGuilinRooms('H', '博雅楼二单元-', 6, 20)
+    '4320': generateRooms('H', '15-1-', 6, 20),
+    '4523': generateRooms('H', '15-2-', 6, 20),
+    '4722': generateRooms('H', '13-1-', 6, 20),
+    '5158': generateRooms('H', '13-2-', 6, 20),
+    '5623': generateRooms('H', '17-', 6, 20),
+    '6068': generateRooms('H', '18-', 6, 20),
+    '6267': generateRooms('H', '19-', 6, 20),
+    '6454': generateRooms('H', '20-', 6, 20),
+    '6899': generateRooms('H', '21-', 6, 20),
+    'B1': generateRooms('H', '1-', 6, 20),
+    'B2': generateRooms('H', '2-', 6, 20),
+    'B3': generateRooms('H', '3-', 6, 20),
+    'B4': generateRooms('H', '4-', 6, 20),
+    'B5': generateRooms('H', '5-', 6, 20),
+    'B6': generateRooms('H', '6-', 6, 20),
+    'B7': generateRooms('H', '7-', 6, 20),
+    'B8': generateRooms('H', '8-', 6, 20),
+    'B9': generateRooms('H', '9-', 6, 20),
+    'B10': generateRooms('H', '10-', 6, 20),
+    'B11': generateRooms('H', '11-', 6, 20),
+    'B12': generateRooms('H', '12-', 6, 20),
+    'B16': generateRooms('H', '16-', 6, 20),
+    'B19': generateRooms('H14', '14-', 10, 20)
 };
 
 async function getAllRoomsByBuilding(accessToken, buildingId, areaId = '') {
-    if (areaId === 'glxq') {
-        const allRooms = [];
-        let page = 1;
-        const size = 100;
-        
-        while (true) {
-            const result = await getGuilinRooms(accessToken, buildingId, page, size);
-            if (result.data && result.data.length > 0) {
-                allRooms.push(...result.data);
-            }
-            if (page >= result.pages || result.data.length === 0) {
-                break;
-            }
-            page++;
-        }
-        
-        if (allRooms.length > 0) {
-            console.log(`桂林校区 ${buildingId} 从API获取到 ${allRooms.length} 个房间`);
-            return allRooms;
-        }
-        
-        if (GUILIN_BUILDING_ROOMS[buildingId]) {
-            console.log(`桂林校区 ${buildingId} 使用硬编码数据`);
-            return GUILIN_BUILDING_ROOMS[buildingId];
-        }
-        
-        return [];
-    }
-    
     if (areaId === 'nnxq') {
         const allRooms = [];
         let page = 1;
@@ -779,6 +629,7 @@ async function getAllBuildingsRooms(accessToken, areaId = 'nnxq') {
 async function getElectricity(accessToken, roomId, areaId = '') {
     try {
         const elecUrl = getElecUrlForRoom(areaId, roomId);
+        console.log(`[电费查询] roomId: ${roomId}, areaId: ${areaId}, elecUrl: ${elecUrl}`);
         const headers = {
             ...DEFAULT_HEADERS,
             'Authorization': `bearer ${accessToken}`,
@@ -792,12 +643,18 @@ async function getElectricity(accessToken, roomId, areaId = '') {
             headers
         });
         
+        console.log(`[电费查询响应] ${JSON.stringify(response.data)}`);
+        
         if (response.data) {
             return response.data.data || response.data || null;
         }
         return null;
     } catch (error) {
         console.error('获取电费余额失败:', error.message);
+        if (error.response) {
+            console.error('响应状态:', error.response.status);
+            console.error('响应数据:', JSON.stringify(error.response.data));
+        }
         return null;
     }
 }
