@@ -15,6 +15,7 @@ const NANNING_ELEC_URL_2 = 'http://202.103.236.36:10001';
 
 const NANNING_BUILDING_URL_MAP = {
     '4320': NANNING_ELEC_URL_1,
+    '4351': NANNING_ELEC_URL_1,
     '4523': NANNING_ELEC_URL_1,
     '4722': NANNING_ELEC_URL_1,
     '5158': NANNING_ELEC_URL_1,
@@ -662,10 +663,12 @@ async function getElectricity(accessToken, roomId, areaId = '', buildingId = '')
     try {
         const elecUrl = getElecUrlForRoom(areaId, roomId, buildingId);
         console.log(`[电费查询] roomId: ${roomId}, areaId: ${areaId}, buildingId: ${buildingId}, elecUrl: ${elecUrl}`);
+        
         const headers = {
             ...DEFAULT_HEADERS,
             'Authorization': `bearer ${accessToken}`,
-            'Content-Type': 'multipart/form-data'
+            'Origin': 'http://card.beitoucloud.com',
+            'Referer': 'http://card.beitoucloud.com/'
         };
         
         const formData = new FormData();
