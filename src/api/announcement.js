@@ -41,10 +41,10 @@ async function getAnnouncements(limit = 5, offset = 0) {
                         const day = $time.find('em').text().trim();
                         const yearMonth = $time.find('i').text().trim();
                         if (day && yearMonth) {
-                            const yearShort = yearMonth.substring(2, 4);
-                            const month = yearMonth.substring(5);
-                            date = `${yearShort}-${month}-${day.padStart(2, '0')}`;
-                        }
+                        const yearShort = yearMonth.substring(2, 4);
+                        const month = yearMonth.substring(5);
+                        date = `20${yearShort}-${month}-${day.padStart(2, '0')}`;
+                    }
                     }
 
                     const title = $nr.text().trim();
