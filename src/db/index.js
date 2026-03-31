@@ -33,13 +33,27 @@ async function initDatabase() {
         await sequelize.authenticate();
         console.log('数据库连接成功 [华为云 MariaDB]');
         
+        // 确保模型已加载
+        require('./models');
+        
         await sequelize.sync({ force: false });
         console.log('所有模型已同步');
-        
+        return true;
     } catch (error) {
         console.error('数据库连接失败:', error.message);
-        process.exit(1);
+        console.warn('将以无数据库模式启动，部分功能可能不可用');
+        return false;
     }
 }
 
-module.exports = { sequelize, initDatabase };
+// 先导出基本对象
+module.exports = {
+    sequelize,
+    initDatabase
+};
+
+// 然后加载模型并添加到导出对象
+const models = require('./models');
+for (const key in models) {
+    module.exports[key] = models[key];
+}

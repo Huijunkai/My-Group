@@ -9,7 +9,7 @@ const knownAnnouncementIds = new Set();
 
 const CHECK_INTERVAL = 30 * 60 * 1000;
 const ANNOUNCEMENT_CHECK_INTERVAL = 10 * 60 * 1000;
-const KEYWORDS = ['重修', '补考', '体测', '选课', '补修', '免修'];
+const KEYWORDS = ['重修', '补考', '体质健康测试', '选课', '补修', '免修'];
 
 function startMonitoring() {
     console.log('NotificationMonitor: Starting notification monitoring service...');

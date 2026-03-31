@@ -7,9 +7,13 @@ const { getStudentInfo, getTimetable, getGrades, getExamSchedule, getSemesterPla
 const { getAnnouncements, getAnnouncementDetail } = require('./src/api/announcement');
 const { getCampuses, getBuildings, queryEmptyRooms, queryRoomSchedule } = require('./src/api/emptyroom');
 const { scanWaterQrcode, initWaterDevice, parseScanUrl, bindWaterAccount, getWaterBalance } = require('./src/api/water');
+const { getElectricity, saveElectricityReminderSettings, getElectricityReminderSettings } = require('./src/api/electricity');
 const xyyxt = require('./src/xyyxt');
 const pushService = require('./src/services/pushService');
 const notificationMonitor = require('./src/services/notificationMonitor');
+const electricityMonitor = require('./src/services/electricityMonitor');
+const { initDatabase } = require('./src/db');
+const { syncStudent, syncCourses, syncGrades, syncExams, syncPlans, syncProgress } = require('./src/db/sync');
 
 const app = express();
 app.use(cors());
@@ -103,6 +107,23 @@ app.post('/api/sync', async (req, res) => {
 
         console.log(`数据获取完成: ${username}`);
         console.log(`数据统计: 课表=${timetableCount}, 成绩=${gradesCount}, 考试=${exams ? exams.length : 0}, 培养计划=${plans ? Object.keys(plans).length : 0}学期, 学分进度=${progress ? progress.length : 0}`);
+
+        // 同步数据到数据库
+        try {
+            console.log(`开始同步数据到数据库: ${username}`);
+            await Promise.all([
+                syncStudent(username, info),
+                syncCourses(username, timetable || []),
+                syncGrades(username, grades || {}),
+                syncExams(username, exams || []),
+                syncPlans(username, plans || {}),
+                syncProgress(username, progress || [])
+            ]);
+            console.log(`数据同步完成: ${username}`);
+        } catch (syncError) {
+            console.error('数据同步失败:', syncError.message);
+            // 数据同步失败不影响API响应，继续返回数据
+        }
 
         userSessions.set(username, {
             cookies: cookies,
@@ -201,10 +222,12 @@ app.post('/api/push/test', async (req, res) => {
 app.get('/api/announcements', async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 5;
-        const announcements = await getAnnouncements(limit);
+        const offset = parseInt(req.query.offset) || 0;
+        const result = await getAnnouncements(limit, offset);
         res.json({
             success: true,
-            data: announcements
+            data: result.announcements,
+            total: result.total
         });
     } catch (error) {
         console.error('获取公告失败:', error);
@@ -841,6 +864,44 @@ app.get('/api/xyyxt/electricity', async (req, res) => {
     }
 });
 
+app.post('/api/electricity/reminder/settings', async (req, res) => {
+    const { studentId, settings } = req.body;
+
+    if (!studentId || !settings) {
+        return res.status(400).json({ success: false, message: '请提供学号和设置信息' });
+    }
+
+    try {
+        const result = await saveElectricityReminderSettings(studentId, settings);
+        res.json(result);
+    } catch (error) {
+        console.error('保存电费提醒设置失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '保存失败: ' + error.message
+        });
+    }
+});
+
+app.get('/api/electricity/reminder/settings', async (req, res) => {
+    const { studentId } = req.query;
+
+    if (!studentId) {
+        return res.status(400).json({ success: false, message: '请提供学号' });
+    }
+
+    try {
+        const result = await getElectricityReminderSettings(studentId);
+        res.json(result);
+    } catch (error) {
+        console.error('获取电费提醒设置失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取失败: ' + error.message
+        });
+    }
+});
+
 app.post('/api/ai/chat', async (req, res) => {
     const { messages, apiKey, model } = req.body;
 
@@ -913,12 +974,39 @@ app.post('/api/ai/chat', async (req, res) => {
     }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is running on port ${PORT} (proxy-only mode, no database)`);
-    console.log(`Push notifications: ${process.env.HUAWEI_CLIENT_ID ? 'enabled' : 'disabled (no credentials)'}`);
-    
-    if (process.env.HUAWEI_CLIENT_ID) {
-        notificationMonitor.startMonitoring();
-        console.log('Notification monitoring service started');
+async function startServer() {
+    try {
+        // 尝试初始化数据库
+        try {
+            const dbInitialized = await initDatabase();
+            console.log('数据库初始化完成，状态:', dbInitialized ? '成功' : '失败（无数据库模式）');
+        } catch (dbError) {
+            console.warn('数据库初始化失败:', dbError.message);
+            console.warn('将以无数据库模式启动，部分功能可能不可用');
+        }
+        
+        // 启动服务器
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`Server is running on port ${PORT}`);
+            console.log(`Push notifications: ${process.env.HUAWEI_CLIENT_ID ? 'enabled' : 'disabled (no credentials)'}`);
+            
+            if (process.env.HUAWEI_CLIENT_ID) {
+                notificationMonitor.startMonitoring();
+                console.log('Notification monitoring service started');
+                
+                // 启动电费监控服务
+                try {
+                    electricityMonitor.start();
+                    console.log('Electricity monitoring service started');
+                } catch (e) {
+                    console.warn('启动电费监控服务失败:', e.message);
+                }
+            }
+        });
+    } catch (error) {
+        console.error('启动服务器失败:', error.message);
+        process.exit(1);
     }
-});
+}
+
+startServer();

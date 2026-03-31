@@ -1,72 +1,112 @@
 const cheerio = require('cheerio');
 const axios = require('axios');
 
-const ANNOUNCEMENT_URL = 'https://jwc.bwgl.cn/tzgg/A130008index_1.htm';
-const BASE_ANNOUNCEMENT_URL = 'https://jwc.bwgl.cn';
+const ANNOUNCEMENT_URLS = [
+    { url: 'https://jwc.bwgl.cn/tzgg/A130008index_1.htm', baseUrl: 'https://jwc.bwgl.cn' },
+    { url: 'https://wlxy.bwgl.cn/tzgg/A144010index_1.htm', baseUrl: 'https://wlxy.bwgl.cn' }
+];
 
-async function getAnnouncements(limit = 5) {
+async function getAnnouncements(limit = 5, offset = 0) {
     try {
-        const response = await axios.get(ANNOUNCEMENT_URL, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
-            },
-            timeout: 10000
+        const allAnnouncements = [];
+
+        console.log('开始获取公告，来源:', ANNOUNCEMENT_URLS.map(u => u.url));
+
+        for (const source of ANNOUNCEMENT_URLS) {
+            try {
+                console.log(`开始获取 ${source.url} 的公告`);
+                const response = await axios.get(source.url, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+                    },
+                    timeout: 10000
+                });
+
+                const $ = cheerio.load(response.data);
+                const announcementsFromSource = [];
+
+                $('.n_right_list1 li a').each((index, element) => {
+                    const $link = $(element);
+                    const href = $link.attr('href');
+
+                    if (!href) return;
+
+                    const $time = $link.find('.time');
+                    const $nr = $link.find('.nr');
+                    
+                    let date = '';
+                    if ($time.length) {
+                        const day = $time.find('em').text().trim();
+                        const yearMonth = $time.find('i').text().trim();
+                        if (day && yearMonth) {
+                            const yearShort = yearMonth.substring(2, 4);
+                            const month = yearMonth.substring(5);
+                            date = `${yearShort}-${month}-${day.padStart(2, '0')}`;
+                        }
+                    }
+
+                    const title = $nr.text().trim();
+                    if (!title) return;
+
+                    let fullUrl = href;
+                    if (href.startsWith('//')) {
+                        fullUrl = 'https:' + href;
+                    } else if (href.startsWith('/')) {
+                        fullUrl = source.baseUrl + href;
+                    } else if (href.startsWith('./')) {
+                        fullUrl = source.url.substring(0, source.url.lastIndexOf('/') + 1) + href.substring(2);
+                    } else if (!href.startsWith('http')) {
+                        fullUrl = source.baseUrl + '/' + href;
+                    }
+
+                    const announcement = {
+                        title: title,
+                        url: fullUrl,
+                        date: date,
+                        id: allAnnouncements.length + 1
+                    };
+                    
+                    announcementsFromSource.push(announcement);
+                    allAnnouncements.push(announcement);
+                });
+
+                console.log(`从 ${source.url} 获取到 ${announcementsFromSource.length} 条公告`);
+            } catch (error) {
+                console.error(`获取 ${source.url} 公告失败:`, error.message);
+                continue;
+            }
+        }
+
+        console.log(`总共获取到 ${allAnnouncements.length} 条公告`);
+
+        // 按日期排序，最新的在前
+        allAnnouncements.sort((a, b) => {
+            return new Date(b.date) - new Date(a.date);
         });
 
-        const $ = cheerio.load(response.data);
-        const announcements = [];
-
-        $('.n_right_list1 li a').each((index, element) => {
-            if (announcements.length >= limit) return false;
-
-            const $link = $(element);
-            const href = $link.attr('href');
-
-            if (!href) return;
-
-            const $time = $link.find('.time');
-            const $nr = $link.find('.nr');
-            
-            let date = '';
-            if ($time.length) {
-                const day = $time.find('em').text().trim();
-                const yearMonth = $time.find('i').text().trim();
-                if (day && yearMonth) {
-                    const yearShort = yearMonth.substring(2, 4);
-                    const month = yearMonth.substring(5);
-                    date = `${yearShort}-${month}-${day.padStart(2, '0')}`;
-                }
-            }
-
-            const title = $nr.text().trim();
-            if (!title) return;
-
-            let fullUrl = href;
-            if (href.startsWith('//')) {
-                fullUrl = 'https:' + href;
-            } else if (href.startsWith('/')) {
-                fullUrl = BASE_ANNOUNCEMENT_URL + href;
-            } else if (href.startsWith('./')) {
-                fullUrl = ANNOUNCEMENT_URL.substring(0, ANNOUNCEMENT_URL.lastIndexOf('/') + 1) + href.substring(2);
-            } else if (!href.startsWith('http')) {
-                fullUrl = BASE_ANNOUNCEMENT_URL + '/' + href;
-            }
-
-            announcements.push({
-                title: title,
-                url: fullUrl,
-                date: date,
-                id: announcements.length + 1
-            });
+        // 应用分页
+        const startIndex = offset;
+        const endIndex = startIndex + limit;
+        const paginatedAnnouncements = allAnnouncements.slice(startIndex, endIndex);
+        
+        // 重新分配ID
+        paginatedAnnouncements.forEach((announcement, index) => {
+            announcement.id = startIndex + index + 1;
         });
 
-        console.log(`获取到 ${announcements.length} 条公告`);
-        return announcements;
+        console.log(`最终返回 ${paginatedAnnouncements.length} 条公告，偏移量: ${offset}`);
+        return {
+            announcements: paginatedAnnouncements,
+            total: allAnnouncements.length
+        };
     } catch (error) {
         console.error('获取公告失败:', error.message);
-        return [];
+        return {
+            announcements: [],
+            total: 0
+        };
     }
 }
 
@@ -141,7 +181,8 @@ async function getAnnouncementDetail(url) {
                     if (href.startsWith('//')) {
                         fullUrl = 'https:' + href;
                     } else if (href.startsWith('/')) {
-                        fullUrl = BASE_ANNOUNCEMENT_URL + href;
+                        const baseUrl = url.substring(0, url.indexOf('/', 8));
+                        fullUrl = baseUrl + href;
                     }
                     
                     attachments.push({

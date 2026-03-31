@@ -97,11 +97,28 @@ const Progress = sequelize.define('Progress', {
     timestamps: false   // 不自动添加 createdAt 和 updatedAt 字段
 });
 
+// 电费提醒设置表
+const ElectricityReminder = sequelize.define('ElectricityReminder', {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    studentId: { type: DataTypes.STRING(50), unique: true },
+    enabled: { type: DataTypes.BOOLEAN, defaultValue: false },
+    threshold: { type: DataTypes.FLOAT, defaultValue: 10 },
+    roomId: DataTypes.STRING(50),
+    campusId: DataTypes.STRING(50),
+    buildingId: DataTypes.STRING(50),
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE
+}, {
+    tableName: 'ElectricityReminder',
+    timestamps: true
+});
+
 module.exports = {
     Student,
     Course,
     Grade,
     Exam,
     Plan,
-    Progress
+    Progress,
+    ElectricityReminder
 };

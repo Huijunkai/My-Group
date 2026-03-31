@@ -20,11 +20,14 @@ async function getAccessToken() {
     }
 
     try {
-        const response = await axios.post('https://oauth-login.cloud.huawei.com/oauth2/v3/token', {
-            grant_type: 'client_credentials',
-            client_id: clientId,
-            client_secret: clientSecret
-        }, {
+        const params = new URLSearchParams();
+        params.append('grant_type', 'client_credentials');
+        params.append('client_id', clientId);
+        params.append('client_secret', clientSecret);
+        
+        console.log('PushService: Requesting access token with clientId:', clientId.substring(0, 10) + '...');
+        
+        const response = await axios.post('https://oauth-login.cloud.huawei.com/oauth2/v3/token', params, {
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             }
@@ -37,6 +40,10 @@ async function getAccessToken() {
         return accessToken;
     } catch (error) {
         console.error('PushService: Failed to get access token:', error.message);
+        if (error.response) {
+            console.error('PushService: Error response data:', error.response.data);
+            console.error('PushService: Error response status:', error.response.status);
+        }
         return null;
     }
 }
@@ -181,11 +188,22 @@ async function notifyExamReminder(studentId, examInfo) {
     });
 }
 
+async function notifyElectricityLow(studentId, electricityInfo) {
+    const anonymousId = generateAnonymousId(studentId);
+    const title = '电费提醒';
+    const content = `您的宿舍电费余额已低于 ${electricityInfo.threshold} 元，当前余额为 ${electricityInfo.balance.toFixed(2)} 元，请及时充值。`;
+    
+    return await sendPushToUser(anonymousId, title, content, 'electricity_reminder', {
+        balance: electricityInfo.balance,
+        threshold: electricityInfo.threshold
+    });
+}
+
 async function notifyAnnouncement(title, keyword, url) {
     const keywordLabels = {
         '重修': '重修通知',
         '补考': '补考通知',
-        '体测': '体测通知',
+        '体质健康测试': '体质健康测试通知',
         '选课': '选课通知',
         '补修': '补修通知',
         '免修': '免修通知'
@@ -265,6 +283,7 @@ module.exports = {
     notifyNewGrade,
     notifyNewExam,
     notifyExamReminder,
+    notifyElectricityLow,
     notifyAnnouncement,
     generateAnonymousId
 };
