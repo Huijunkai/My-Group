@@ -47,6 +47,9 @@ async function getElectricity(username, roomId, campusId, buildingId) {
 
 async function saveElectricityReminderSettings(studentId, settings) {
   try {
+    const campusId = settings.campusId || settings.campus || '';
+    const buildingId = settings.buildingId || settings.building || '';
+    
     const existingSettings = await db.ElectricityReminder.findOne({
       where: { studentId }
     });
@@ -55,9 +58,12 @@ async function saveElectricityReminderSettings(studentId, settings) {
       existingSettings.enabled = settings.enabled;
       existingSettings.threshold = settings.threshold;
       existingSettings.electricityAccount = settings.electricityAccount;
+      if (settings.electricityPassword) {
+        existingSettings.electricityPassword = settings.electricityPassword;
+      }
       existingSettings.roomId = settings.roomId;
-      existingSettings.campusId = settings.campusId;
-      existingSettings.buildingId = settings.buildingId;
+      existingSettings.campusId = campusId;
+      existingSettings.buildingId = buildingId;
       existingSettings.updatedAt = new Date();
       
       await existingSettings.save();
@@ -73,9 +79,10 @@ async function saveElectricityReminderSettings(studentId, settings) {
         enabled: settings.enabled,
         threshold: settings.threshold,
         electricityAccount: settings.electricityAccount,
+        electricityPassword: settings.electricityPassword || '',
         roomId: settings.roomId,
-        campusId: settings.campusId,
-        buildingId: settings.buildingId,
+        campusId: campusId,
+        buildingId: buildingId,
         createdAt: new Date(),
         updatedAt: new Date()
       });
@@ -102,9 +109,22 @@ async function getElectricityReminderSettings(studentId) {
     });
 
     if (settings) {
+      const safeSettings = {
+        id: settings.id,
+        studentId: settings.studentId,
+        enabled: settings.enabled,
+        threshold: settings.threshold,
+        electricityAccount: settings.electricityAccount,
+        hasPassword: !!settings.electricityPassword,
+        roomId: settings.roomId,
+        campusId: settings.campusId,
+        buildingId: settings.buildingId,
+        createdAt: settings.createdAt,
+        updatedAt: settings.updatedAt
+      };
       return {
         success: true,
-        data: settings
+        data: safeSettings
       };
     } else {
       return {
@@ -113,6 +133,7 @@ async function getElectricityReminderSettings(studentId) {
           enabled: false,
           threshold: 10,
           electricityAccount: '',
+          hasPassword: false,
           roomId: '',
           campusId: '',
           buildingId: ''

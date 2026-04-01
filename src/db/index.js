@@ -2,7 +2,7 @@ const { Sequelize } = require('sequelize');
 
 const sequelize = new Sequelize(
     'app_db',
-    'app_backend',
+    'root',
     '021219Hjk!',
     {
         host: '127.0.0.1',
@@ -33,10 +33,9 @@ async function initDatabase() {
         await sequelize.authenticate();
         console.log('数据库连接成功 [华为云 MariaDB]');
         
-        // 确保模型已加载
-        require('./models');
+        const models = require('./models');
         
-        await sequelize.sync({ force: false });
+        await sequelize.sync({ alter: true });
         console.log('所有模型已同步');
         return true;
     } catch (error) {

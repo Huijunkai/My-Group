@@ -110,8 +110,10 @@ async function syncCourses(studentId, courses) {
 }
 
 async function syncGrades(studentId, gradesGrouped) {
-    if (!studentId || !gradesGrouped) return;
-
+    if (!studentId || !gradesGrouped) return [];
+    
+    const newGrades = [];
+    
     for (const semester in gradesGrouped) {
         for (const grade of gradesGrouped[semester]) {
             if (!grade || !grade.courseCode) continue;
@@ -133,14 +135,23 @@ async function syncGrades(studentId, gradesGrouped) {
             });
             
             console.log(`syncGrades: 新增成绩 ${semester}-${grade.courseCode}`);
+            
+            newGrades.push({
+                success: true,
+                grade: grade
+            });
         }
     }
+    
+    return newGrades;
 }
 
 async function syncExams(studentId, exams) {
     if (!studentId || !exams || !Array.isArray(exams)) {
-        return;
+        return [];
     }
+    
+    const newExams = [];
     
     for (const exam of exams) {
         if (!exam || !exam.courseName || !exam.examTime) continue;
@@ -160,7 +171,14 @@ async function syncExams(studentId, exams) {
         });
         
         console.log(`syncExams: 新增考试 ${exam.courseName}`);
+        
+        newExams.push({
+            success: true,
+            exam: exam
+        });
     }
+    
+    return newExams;
 }
 
 async function syncPlans(studentId, plansGrouped) {

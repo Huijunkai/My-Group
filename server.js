@@ -15,6 +15,7 @@ const electricityMonitor = require('./src/services/electricityMonitor');
 const { initDatabase } = require('./src/db');
 const { syncStudent, syncCourses, syncGrades, syncExams, syncPlans, syncProgress } = require('./src/db/sync');
 const { getEncryptionKeyBase64, getIvBase64 } = require('./src/utils/encryption');
+const { UserPushToken, Grade, Exam, Course } = require('./src/db/models');
 
 const app = express();
 app.use(cors());
@@ -121,21 +122,41 @@ app.post('/api/sync', async (req, res) => {
         console.log(`数据获取完成: ${username}`);
         console.log(`数据统计: 课表=${timetableCount}, 成绩=${gradesCount}, 考试=${exams ? exams.length : 0}, 培养计划=${plans ? Object.keys(plans).length : 0}学期, 学分进度=${progress ? progress.length : 0}`);
 
-        // 同步数据到数据库
         try {
             console.log(`开始同步数据到数据库: ${username}`);
+            
+            const realtimePush = require('./src/services/realtimePush');
+            
+            const gradeResults = await syncGrades(username, grades || {});
+            if (gradeResults && gradeResults.length > 0) {
+                console.log(`检测到 ${gradeResults.length} 条新成绩，触发实时推送`);
+                for (const result of gradeResults) {
+                    if (result.success) {
+                        await realtimePush.notifyNewGradeRealtime(username, result.grade);
+                    }
+                }
+            }
+            
+            const examResults = await syncExams(username, exams || []);
+            if (examResults && examResults.length > 0) {
+                console.log(`检测到 ${examResults.length} 条新考试，触发实时推送`);
+                for (const result of examResults) {
+                    if (result.success) {
+                        await realtimePush.notifyNewExamRealtime(username, result.exam);
+                    }
+                }
+            }
+            
             await Promise.all([
                 syncStudent(username, info),
                 syncCourses(username, timetable || []),
-                syncGrades(username, grades || {}),
-                syncExams(username, exams || []),
                 syncPlans(username, plans || {}),
                 syncProgress(username, progress || [])
             ]);
+            
             console.log(`数据同步完成: ${username}`);
         } catch (syncError) {
             console.error('数据同步失败:', syncError.message);
-            // 数据同步失败不影响API响应，继续返回数据
         }
 
         userSessions.set(username, {
@@ -187,24 +208,49 @@ app.get('/api/semester/latest', async (_req, res) => {
 });
 
 app.post('/api/push/register', async (req, res) => {
-    const { studentId, pushToken } = req.body;
+    const { studentId, pushToken, deviceInfo } = req.body;
 
     if (!studentId || !pushToken) {
         return res.status(400).json({ success: false, message: '请提供学号和推送Token' });
     }
 
-    userPushTokens.set(studentId, {
-        token: pushToken,
-        registeredAt: Date.now()
-    });
+    try {
+        const existingToken = await UserPushToken.findOne({ where: { studentId } });
+        
+        if (existingToken) {
+            existingToken.pushToken = pushToken;
+            existingToken.deviceInfo = deviceInfo || existingToken.deviceInfo;
+            existingToken.isActive = true;
+            existingToken.lastActiveAt = new Date();
+            await existingToken.save();
+            console.log(`Push token updated for student: ${studentId}`);
+        } else {
+            await UserPushToken.create({
+                studentId,
+                pushToken,
+                deviceInfo: deviceInfo || 'unknown',
+                isActive: true,
+                createdAt: new Date(),
+                lastActiveAt: new Date()
+            });
+            console.log(`Push token created for student: ${studentId}`);
+        }
 
-    const session = userSessions.get(studentId);
-    if (session) {
-        notificationMonitor.registerUser(studentId, session.cookies, pushToken);
+        userPushTokens.set(studentId, {
+            token: pushToken,
+            registeredAt: Date.now()
+        });
+
+        const session = userSessions.get(studentId);
+        if (session) {
+            notificationMonitor.registerUser(studentId, session.cookies, pushToken);
+        }
+
+        res.json({ success: true, message: '推送Token注册成功' });
+    } catch (error) {
+        console.error('Failed to register push token:', error);
+        res.status(500).json({ success: false, message: '注册失败: ' + error.message });
     }
-
-    console.log(`Push token registered for student: ${studentId}`);
-    res.json({ success: true, message: '推送Token注册成功' });
 });
 
 app.post('/api/push/unregister', async (req, res) => {
@@ -214,10 +260,21 @@ app.post('/api/push/unregister', async (req, res) => {
         return res.status(400).json({ success: false, message: '请提供学号' });
     }
 
-    userPushTokens.delete(studentId);
-    notificationMonitor.unregisterUser(studentId);
-    console.log(`Push token unregistered for student: ${studentId}`);
-    res.json({ success: true, message: '推送Token注销成功' });
+    try {
+        const userToken = await UserPushToken.findOne({ where: { studentId } });
+        if (userToken) {
+            userToken.isActive = false;
+            await userToken.save();
+        }
+
+        userPushTokens.delete(studentId);
+        notificationMonitor.unregisterUser(studentId);
+        console.log(`Push token unregistered for student: ${studentId}`);
+        res.json({ success: true, message: '推送Token注销成功' });
+    } catch (error) {
+        console.error('Failed to unregister push token:', error);
+        res.status(500).json({ success: false, message: '注销失败: ' + error.message });
+    }
 });
 
 app.post('/api/push/test', async (req, res) => {
@@ -227,19 +284,24 @@ app.post('/api/push/test', async (req, res) => {
         return res.status(400).json({ success: false, message: '请提供学号' });
     }
 
-    const tokenInfo = userPushTokens.get(studentId);
-    if (!tokenInfo) {
-        return res.status(404).json({ success: false, message: '未找到该用户的推送Token' });
+    try {
+        const userToken = await UserPushToken.findOne({ where: { studentId, isActive: true } });
+        if (!userToken) {
+            return res.status(404).json({ success: false, message: '未找到该用户的推送Token' });
+        }
+
+        const result = await pushService.sendPushNotification(
+            userToken.pushToken,
+            title || '测试通知',
+            content || '这是一条测试消息',
+            type || 'course_change'
+        );
+
+        res.json(result);
+    } catch (error) {
+        console.error('Failed to send test push:', error);
+        res.status(500).json({ success: false, message: '发送失败: ' + error.message });
     }
-
-    const result = await pushService.sendPushNotification(
-        tokenInfo.token,
-        title || '测试通知',
-        content || '这是一条测试消息',
-        type || 'course_change'
-    );
-
-    res.json(result);
 });
 
 app.get('/api/announcements', async (req, res) => {
