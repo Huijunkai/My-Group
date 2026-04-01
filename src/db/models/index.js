@@ -103,6 +103,7 @@ const ElectricityReminder = sequelize.define('ElectricityReminder', {
     studentId: { type: DataTypes.STRING(50), unique: true },
     enabled: { type: DataTypes.BOOLEAN, defaultValue: false },
     threshold: { type: DataTypes.FLOAT, defaultValue: 10 },
+    electricityAccount: DataTypes.STRING(50),
     roomId: DataTypes.STRING(50),
     campusId: DataTypes.STRING(50),
     buildingId: DataTypes.STRING(50),

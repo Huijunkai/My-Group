@@ -14,6 +14,7 @@ const notificationMonitor = require('./src/services/notificationMonitor');
 const electricityMonitor = require('./src/services/electricityMonitor');
 const { initDatabase } = require('./src/db');
 const { syncStudent, syncCourses, syncGrades, syncExams, syncPlans, syncProgress } = require('./src/db/sync');
+const { getEncryptionKeyBase64, getIvBase64 } = require('./src/utils/encryption');
 
 const app = express();
 app.use(cors());
@@ -42,7 +43,19 @@ app.get('/api/version', (_req, res) => {
         mode: 'proxy-only',
         features: {
             timetableFollowRedirects: true,
-            noDatabase: true
+            noDatabase: true,
+            encryption: true
+        }
+    });
+});
+
+app.get('/api/encryption/key', (_req, res) => {
+    res.json({
+        success: true,
+        data: {
+            key: getEncryptionKeyBase64(),
+            iv: getIvBase64(),
+            algorithm: 'AES-256-CBC'
         }
     });
 });
@@ -130,15 +143,25 @@ app.post('/api/sync', async (req, res) => {
             lastSync: Date.now()
         });
 
+        const gradesArray = grades ? Object.keys(grades).map(semester => ({
+            semester,
+            grades: grades[semester] || []
+        })) : [];
+
+        const plansArray = plans ? Object.keys(plans).map(semester => ({
+            semester,
+            plans: plans[semester] || []
+        })) : [];
+
         return res.json({
             success: true,
             message: '数据获取成功',
             data: {
                 info,
                 courses: timetable || [],
-                grades: grades || {},
+                grades: gradesArray,
                 exams: exams || [],
-                plans: plans || {},
+                plans: plansArray,
                 progress: progress || [],
                 semester: currentSemester,
                 lastUpdated: Date.now()

@@ -52,9 +52,9 @@ async function saveElectricityReminderSettings(studentId, settings) {
     });
 
     if (existingSettings) {
-      // Update existing settings
       existingSettings.enabled = settings.enabled;
       existingSettings.threshold = settings.threshold;
+      existingSettings.electricityAccount = settings.electricityAccount;
       existingSettings.roomId = settings.roomId;
       existingSettings.campusId = settings.campusId;
       existingSettings.buildingId = settings.buildingId;
@@ -68,11 +68,11 @@ async function saveElectricityReminderSettings(studentId, settings) {
         data: existingSettings
       };
     } else {
-      // Create new settings
       const newSettings = await db.ElectricityReminder.create({
         studentId,
         enabled: settings.enabled,
         threshold: settings.threshold,
+        electricityAccount: settings.electricityAccount,
         roomId: settings.roomId,
         campusId: settings.campusId,
         buildingId: settings.buildingId,
@@ -112,6 +112,7 @@ async function getElectricityReminderSettings(studentId) {
         data: {
           enabled: false,
           threshold: 10,
+          electricityAccount: '',
           roomId: '',
           campusId: '',
           buildingId: ''

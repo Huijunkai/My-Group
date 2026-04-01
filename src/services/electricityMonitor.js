@@ -8,12 +8,10 @@ class ElectricityMonitor {
 
   start() {
     console.log('电费监控服务启动');
-    // 每小时检查一次
     this.interval = setInterval(() => {
       this.checkAllElectricity();
     }, 60 * 60 * 1000);
 
-    // 立即执行一次
     this.checkAllElectricity();
   }
 
@@ -50,13 +48,20 @@ class ElectricityMonitor {
 
   async checkElectricityForUser(setting) {
     try {
-      const { studentId, threshold, roomId, campusId, buildingId } = setting;
+      const { studentId, threshold, roomId, campusId, buildingId, electricityAccount } = setting;
 
-      // 假设 username 就是 studentId
-      const username = studentId;
+      if (!electricityAccount) {
+        console.log(`用户 ${studentId} 未设置电费账号，跳过检查`);
+        return;
+      }
+
+      if (!roomId || !campusId || !buildingId) {
+        console.log(`用户 ${studentId} 电费设置不完整，跳过检查`);
+        return;
+      }
 
       const electricityResult = await electricityApi.getElectricity(
-        username,
+        electricityAccount,
         roomId,
         campusId,
         buildingId

@@ -1,137 +1,116 @@
 const { Student, Course, Grade, Exam, Plan, Progress } = require('./models');
 const { sequelize } = require('./index');
+const { 
+    encryptStudentInfo, 
+    encryptCourse, 
+    encryptGrade, 
+    encryptExam, 
+    encryptPlan, 
+    encryptProgress,
+    encrypt 
+} = require('../utils/encryption');
 
-// 修正模型定义中的 sequelize 引用
-// 之前在 models/index.js 中引用的是 ../index，现在我们要确保模型加载正确
-
-/**
- * 同步学生信息
- */
 async function syncStudent(studentId, info) {
     if (!studentId || !info) return;
-    await Student.upsert({
+    
+    const existing = await Student.findByPk(studentId);
+    if (existing) {
+        console.log(`syncStudent: 学生 ${studentId} 已存在，跳过更新`);
+        return;
+    }
+    
+    const encryptedInfo = encryptStudentInfo(info);
+    
+    await Student.create({
         studentId,
-        ...info,
+        ...encryptedInfo,
         lastSync: new Date()
     });
+    
+    console.log(`syncStudent: 新增学生 ${studentId}`);
 }
 
-/**
- * 同步课表
- */
 async function syncCourses(studentId, courses) {
     if (!studentId || !courses || !Array.isArray(courses)) return;
     
-    // 关键优化：
-    // 1) week + period 已纳入主键，避免同名课程不同周/不同节次被覆盖
-    // 2) 使用 bulkCreate + updateOnDuplicate 减少数据库往返，降低同步 500/超时概率
-    // 3) 按学期先清空旧缓存，避免周次变更后出现“旧周次残留”
     const semesterSet = new Set();
     for (const course of courses) {
         if (course && course.semester) semesterSet.add(course.semester);
     }
+    
     for (const sem of semesterSet) {
-        await Course.destroy({ where: { studentId, semester: sem } });
-    }
-
-    const rows = [];
-    for (const course of courses) {
-        if (!course) continue;
-        const period = (course.period || '').toString().trim();
-        // period 是主键之一，没有则无法正确定位到课表格子，直接跳过
-        if (!period) continue;
-        const week = Number.isFinite(course.week) ? course.week : parseInt(String(course.week || '0'), 10);
-        if (!Number.isFinite(week)) continue;
-        rows.push({
-            studentId,
-            semester: course.semester,
-            name: course.name,
-            dayOfWeek: course.dayOfWeek,
-            week: week,
-            period: period,
-            teacher: course.teacher,
-            weeks: course.weeks,
-            location: course.location,
-            courseType: course.courseType,
-            raw: course.raw
-        });
-    }
-    if (rows.length === 0) return;
-
-    // PostgreSQL 限制：同一次 INSERT ... ON CONFLICT DO UPDATE 中，
-    // 如果待插入数组里出现“相同主键”的重复行，会报错：
-    // "ON CONFLICT DO UPDATE command cannot affect row a second time"
-    // 因此这里必须先按主键去重（保留信息更完整的一条）。
-    const dedupMap = new Map();
-    for (const r of rows) {
-        const key = [
-            r.studentId,
-            r.semester,
-            r.name,
-            r.dayOfWeek,
-            String(r.week),
-            r.period
-        ].join('||');
-
-        const prev = dedupMap.get(key);
-        if (!prev) {
-            dedupMap.set(key, r);
+        const existingCount = await Course.count({ where: { studentId, semester: sem } });
+        if (existingCount > 0) {
+            console.log(`syncCourses: 学期 ${sem} 课程已存在，跳过更新`);
             continue;
         }
+        
+        const rows = [];
+        for (const course of courses) {
+            if (!course || course.semester !== sem) continue;
+            const period = (course.period || '').toString().trim();
+            if (!period) continue;
+            const week = Number.isFinite(course.week) ? course.week : parseInt(String(course.week || '0'), 10);
+            if (!Number.isFinite(week)) continue;
+            
+            const encryptedCourse = encryptCourse(course);
+            
+            rows.push({
+                studentId,
+                semester: encryptedCourse.semester,
+                name: encryptedCourse.name,
+                dayOfWeek: encryptedCourse.dayOfWeek,
+                week: week,
+                period: period,
+                teacher: encryptedCourse.teacher,
+                weeks: encryptedCourse.weeks,
+                location: encryptedCourse.location,
+                courseType: encryptedCourse.courseType,
+                raw: encryptedCourse.raw
+            });
+        }
+        
+        if (rows.length > 0) {
+            const dedupMap = new Map();
+            for (const r of rows) {
+                const key = [
+                    r.studentId,
+                    r.semester,
+                    r.name,
+                    r.dayOfWeek,
+                    String(r.week),
+                    r.period
+                ].join('||');
 
-        // 合并策略：优先保留 raw 更长、location/teacher 非空的记录
-        const prevRawLen = prev.raw ? String(prev.raw).length : 0;
-        const nextRawLen = r.raw ? String(r.raw).length : 0;
+                const prev = dedupMap.get(key);
+                if (!prev) {
+                    dedupMap.set(key, r);
+                    continue;
+                }
 
-        const merged = {
-            ...prev,
-            teacher: (prev.teacher && String(prev.teacher).trim()) ? prev.teacher : r.teacher,
-            location: (prev.location && String(prev.location).trim()) ? prev.location : r.location,
-            weeks: (prev.weeks && String(prev.weeks).trim()) ? prev.weeks : r.weeks,
-            raw: nextRawLen > prevRawLen ? r.raw : prev.raw
-        };
+                const prevRawLen = prev.raw ? String(prev.raw).length : 0;
+                const nextRawLen = r.raw ? String(r.raw).length : 0;
 
-        dedupMap.set(key, merged);
+                const merged = {
+                    ...prev,
+                    teacher: (prev.teacher && String(prev.teacher).trim()) ? prev.teacher : r.teacher,
+                    location: (prev.location && String(prev.location).trim()) ? prev.location : r.location,
+                    weeks: (prev.weeks && String(prev.weeks).trim()) ? prev.weeks : r.weeks,
+                    raw: nextRawLen > prevRawLen ? r.raw : prev.raw
+                };
+
+                dedupMap.set(key, merged);
+            }
+
+            const dedupRows = Array.from(dedupMap.values());
+            await Course.bulkCreate(dedupRows);
+            console.log(`syncCourses: 新增学期 ${sem} 课程 ${dedupRows.length} 条`);
+        }
     }
-
-    const dedupRows = Array.from(dedupMap.values());
-
-    await Course.bulkCreate(dedupRows, {
-        updateOnDuplicate: ['teacher', 'weeks', 'location', 'courseType', 'raw']
-        });
 }
 
-/**
- * 同步成绩
- */
 async function syncGrades(studentId, gradesGrouped) {
     if (!studentId || !gradesGrouped) return;
-
-    // 将成绩字符串转换为可比较的数值（用于保留最高分）
-    const scoreToNumber = (score) => {
-        if (score === null || score === undefined) return -1;
-        const s = String(score).trim();
-        const n = parseFloat(s);
-        if (!Number.isNaN(n)) return n;
-
-        // 常见等级制映射（可按学校规则微调）
-        const map = {
-            '优秀': 95,
-            '良好': 85,
-            '中等': 75,
-            '及格': 65,
-            '合格': 60,
-            '通过': 60,
-            '不及格': 0,
-            '未通过': 0,
-            '缺考': -1,
-            '缓考': -1
-        };
-        for (const key of Object.keys(map)) {
-            if (s.includes(key)) return map[key];
-        }
-        return -1;
-    };
 
     for (const semester in gradesGrouped) {
         for (const grade of gradesGrouped[semester]) {
@@ -140,76 +119,99 @@ async function syncGrades(studentId, gradesGrouped) {
             const where = { studentId, semester, courseCode: grade.courseCode };
             const existing = await Grade.findOne({ where });
 
-            if (!existing) {
-                await Grade.create({
-                    studentId,
-                    semester,
-                    ...grade
-                });
+            if (existing) {
+                console.log(`syncGrades: 成绩 ${semester}-${grade.courseCode} 已存在，跳过更新`);
                 continue;
             }
 
-            // 同一学期同一课程编号（补考/重修会重复出现）——只保留最高成绩
-            const oldScore = scoreToNumber(existing.score);
-            const newScore = scoreToNumber(grade.score);
-            if (newScore > oldScore) {
-                await existing.update({
-                    courseName: grade.courseName,
-                    score: grade.score,
-                    credit: grade.credit,
-                    gradePoint: grade.gradePoint,
-                    courseType: grade.courseType,
-                    examType: grade.examType
-                });
-            }
+            const encryptedGrade = encryptGrade(grade);
+
+            await Grade.create({
+                studentId,
+                semester,
+                ...encryptedGrade
+            });
+            
+            console.log(`syncGrades: 新增成绩 ${semester}-${grade.courseCode}`);
         }
     }
 }
 
-/**
- * 同步考试安排
- */
 async function syncExams(studentId, exams) {
     if (!studentId || !exams || !Array.isArray(exams)) {
         return;
     }
     
     for (const exam of exams) {
-        await Exam.upsert({
+        if (!exam || !exam.courseName || !exam.examTime) continue;
+        
+        const where = { studentId, courseName: exam.courseName, examTime: exam.examTime };
+        const existing = await Exam.findOne({ where });
+        
+        if (existing) {
+            console.log(`syncExams: 考试 ${exam.courseName} 已存在，跳过更新`);
+            continue;
+        }
+        
+        const encryptedExam = encryptExam(exam);
+        await Exam.create({
             studentId,
-            ...exam
+            ...encryptedExam
         });
+        
+        console.log(`syncExams: 新增考试 ${exam.courseName}`);
     }
 }
 
-/**
- * 同步学期计划
- */
 async function syncPlans(studentId, plansGrouped) {
     if (!studentId || !plansGrouped) return;
     
     for (const semester in plansGrouped) {
         for (const plan of plansGrouped[semester]) {
-            await Plan.upsert({
+            if (!plan || !plan.courseCode) continue;
+            
+            const where = { studentId, semester, courseCode: plan.courseCode };
+            const existing = await Plan.findOne({ where });
+            
+            if (existing) {
+                console.log(`syncPlans: 计划 ${semester}-${plan.courseCode} 已存在，跳过更新`);
+                continue;
+            }
+            
+            const encryptedPlan = encryptPlan(plan);
+            await Plan.create({
                 studentId,
                 semester,
-                ...plan
+                ...encryptedPlan
             });
+            
+            console.log(`syncPlans: 新增计划 ${semester}-${plan.courseCode}`);
         }
     }
 }
 
-/**
- * 同步学习进度
- */
 async function syncProgress(studentId, progressData) {
     if (!studentId || !progressData || !Array.isArray(progressData)) return;
     
     for (const item of progressData) {
-        await Progress.upsert({
+        if (!item || !item.category) continue;
+        
+        const encryptedCategory = encrypt(item.category);
+        const where = { studentId, category: encryptedCategory };
+        const existing = await Progress.findOne({ where });
+        
+        if (existing) {
+            console.log(`syncProgress: 进度 ${item.category} 已存在，跳过更新`);
+            continue;
+        }
+        
+        const encryptedItem = encryptProgress({
             studentId,
             ...item
         });
+        
+        await Progress.create(encryptedItem);
+        console.log(`syncProgress: 新增进度 ${item.category}`);
     }
 }
 

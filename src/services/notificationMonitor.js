@@ -265,9 +265,16 @@ function getDayName(dayOfWeek) {
 async function checkAnnouncements() {
     try {
         console.log('NotificationMonitor: Checking for new announcements...');
-        const announcements = await getAnnouncements(20);
+        const result = await getAnnouncements(20);
         
-        if (!announcements || announcements.length === 0) {
+        if (!result || !result.announcements || !Array.isArray(result.announcements)) {
+            console.log('NotificationMonitor: No announcements found or invalid format');
+            return;
+        }
+        
+        const announcements = result.announcements;
+        
+        if (announcements.length === 0) {
             return;
         }
         
