@@ -1,627 +1,1067 @@
-# 教务系统同步服务 (jw-backend)
+# 教务系统后端服务
+
+教务系统数据同步与推送服务，为 HarmonyOS 原生应用 [青序 ](https://github.com/your-repo/qinxu)提供后端 API 支持。
 
 ## 项目概述
 
-**教务系统同步服务**是南理校园助手 (NNLG) 的后端服务，通过爬虫技术代理访问强智教务系统，为学生提供课程表、成绩、考试安排等数据的同步与缓存服务。
+本服务是一个 Node.js 后端应用，主要功能包括：
 
-| 属性 | 信息 |
-|------|------|
-| 服务名称 | 教务系统同步服务 |
-| 版本 | 1.0.0 |
-| 运行环境 | Node.js 14+ |
-| 开发语言 | JavaScript (ES6+) |
-| Web 框架 | Express 5.x |
-| 数据库 | MariaDB |
-| 部署平台 | 华为云 |
+- **教务数据同步**：从强智教务系统抓取学生课表、成绩、考试安排等数据
+- **数据加密传输**：使用 AES-256-CBC 加密敏感数据，确保传输安全
+- **实时推送通知**：集成华为推送服务，支持成绩发布、考试安排、电费提醒等通知
+- **电费查询监控**：支持南宁/桂林校区宿舍电费查询与低余额提醒
+- **空教室查询**：提供校区空教室查询服务
+- **公告通知**：抓取教务处公告并推送关键通知
 
----
+## 技术栈
 
-## 核心功能
-
-### 1. 用户认证
-
-模拟浏览器登录教务系统，获取并维护会话状态。
-
-- **账号密码登录**：使用学号和密码登录教务系统
-- **Cookie 管理**：自动管理会话 Cookie
-- **会话保活**：检测会话失效并自动重新登录
-
-### 2. 数据同步
-
-从教务系统抓取并同步各类教务数据。
-
-- **学生信息**：姓名、性别、学院、专业、班级等基本信息
-- **课程表**：按周次、节次解析课程安排
-- **成绩记录**：按学期分组的成绩数据
-- **考试安排**：考试时间、地点、座位号
-- **培养计划**：学期课程规划
-- **学分进度**：各类学分完成情况
-
-### 3. 数据缓存
-
-将抓取的数据存储到数据库，支持离线查询。
-
-- **增量更新**：只更新变化的数据
-- **成绩去重**：补考/重修成绩只保留最高分
-- **课表优化**：按周次拆分存储，支持快速查询
-
----
+| 技术        | 说明                          |
+| --------- | --------------------------- |
+| Node.js   | 运行环境 (v18+)                 |
+| Express   | Web 框架                      |
+| Sequelize | ORM 数据库框架                   |
+| SQLite    | 默认数据库 (支持 MySQL/PostgreSQL) |
+| Cheerio   | HTML 解析库                    |
+| Axios     | HTTP 请求库                    |
+| 华为推送      | 消息推送服务                      |
 
 ## 项目结构
 
 ```
-jw-backend/
-├── server.js                          # 应用入口文件
-│                                      # - Express 服务器配置
-│                                      # - 路由定义
-│                                      # - 数据库初始化
-│
-├── package.json                       # 项目依赖配置
+f:\jw-backend/
+├── server.js                 # 应用入口，路由定义
+├── package.json              # 项目依赖配置
 │
 ├── src/
-│   ├── index.js                       # 模块导出入口
+│   ├── index.js              # Express 应用配置
 │   │
-│   ├── api/                           # API 接口层
-│   │   ├── auth.js                    # 认证接口
-│   │   │                              # - login() 登录教务系统
-│   │   │
-│   │   ├── student.js                 # 学生数据接口
-│   │   │                              # - getStudentInfo() 获取学生信息
-│   │   │                              # - getTimetable() 获取课表
-│   │   │                              # - getGrades() 获取成绩
-│   │   │                              # - getExamSchedule() 获取考试安排
-│   │   │                              # - getSemesterPlan() 获取培养计划
-│   │   │                              # - getStudyProgress() 获取学分进度
-│   │   │
-│   │   └── index.js                   # API 模块导出
+│   ├── api/                  # API 接口层
+│   │   ├── auth.js           # 登录认证 API
+│   │   ├── student.js        # 学生数据获取 (课表/成绩/考试/计划)
+│   │   ├── announcement.js   # 教务公告抓取
+│   │   ├── emptyroom.js      # 空教室查询
+│   │   ├── electricity.js    # 电费查询 API
+│   │   └── water.js          # 校园打水服务
 │   │
-│   ├── db/                            # 数据库层
-│   │   ├── index.js                   # 数据库连接配置
-│   │   │                              # - Sequelize 实例化
-│   │   │                              # - initDatabase() 初始化数据库
-│   │   │
-│   │   ├── models/                    # 数据模型定义
-│   │   │   └── index.js               # Sequelize 模型
-│   │   │                              # - Student 学生信息表
-│   │   │                              # - Course 课程表
-│   │   │                              # - Grade 成绩表
-│   │   │                              # - Exam 考试安排表
-│   │   │                              # - Plan 培养计划表
-│   │   │                              # - Progress 学分进度表
-│   │   │
-│   │   └── sync.js                    # 数据同步逻辑
-│   │                                  # - syncStudent() 同步学生信息
-│   │                                  # - syncCourses() 同步课表
-│   │                                  # - syncGrades() 同步成绩
-│   │                                  # - syncExams() 同步考试
-│   │                                  # - syncPlans() 同步培养计划
-│   │                                  # - syncProgress() 同步学分进度
+│   ├── parser/               # HTML 解析层
+│   │   └── index.js          # 教务系统页面解析器
 │   │
-│   ├── parser/                        # HTML 解析层
-│   │   └── index.js                   # Cheerio 解析器
-│   │                                  # - parseStudentInfo() 解析学生信息
-│   │                                  # - parseTimetable() 解析课表
-│   │                                  # - parseGrades() 解析成绩
-│   │                                  # - parseExams() 解析考试安排
-│   │                                  # - parseSemesterPlan() 解析培养计划
-│   │                                  # - parseStudyProgress() 解析学分进度
+│   ├── xyyxt/                # 校园一信通集成
+│   │   ├── index.js          # 一信通主入口
+│   │   ├── auth.js           # 一信通认证
+│   │   ├── guilinElec.js     # 桂林校区电费查询
+│   │   └── constants.js      # 常量定义
 │   │
-│   └── utils/                         # 工具层
-│       ├── constants.js               # 常量定义
-│       │                              # - BASE_URL 教务系统地址
-│       │                              # - DEFAULT_HEADERS 默认请求头
-│       │
-│       └── request.js                 # HTTP 请求封装
-│                                      # - formatCookies() 格式化 Cookie
-│                                      # - createInstance() 创建 Axios 实例
+│   ├── services/             # 业务服务层
+│   │   ├── pushService.js    # 华为推送服务封装
+│   │   ├── realtimePush.js   # 实时推送逻辑
+│   │   ├── electricityMonitor.js  # 电费监控服务
+│   │   └── notificationMonitor.js # 通知监控服务
+│   │
+│   ├── db/                   # 数据库层
+│   │   ├── index.js          # 数据库连接配置
+│   │   ├── sync.js           # 数据同步函数
+│   │   └── models/
+│   │       └── index.js      # Sequelize 模型定义
+│   │
+│   └── utils/                # 工具层
+│       ├── constants.js      # 常量定义
+│       ├── encryption.js     # AES 加密工具
+│       └── request.js        # HTTP 请求封装
 │
-├── tests/                             # 测试文件
-│   ├── cli.js                         # 命令行测试工具
-│   ├── test_api.py                    # Python API 测试
-│   ├── test_db.js                     # 数据库测试
-│   ├── test_new.js                    # 新功能测试
-│   ├── test_parse_timetable.js        # 课表解析测试
-│   └── fixtures/
-│       └── timetable_sample.html      # 测试用课表 HTML
+├── tests/                    # 测试文件
+│   ├── test_encryption.js    # 加密测试
+│   ├── test_parse_timetable.js # 课表解析测试
+│   └── ...
 │
 └── docs/
-    └── PROJECT_PLAN.md                # 项目规划文档
+    └── PROJECT_PLAN.md       # 项目规划文档
 ```
 
----
+## 核心模块说明
 
-## 技术架构
-
-### 技术栈
-
-| 类别 | 技术 | 版本 |
-|------|------|------|
-| 运行环境 | Node.js | 14+ |
-| Web 框架 | Express | 5.x |
-| HTTP 客户端 | Axios | 1.x |
-| HTML 解析 | Cheerio | 1.x |
-| ORM | Sequelize | 6.x |
-| 数据库 | MariaDB | 10.x |
-| 跨域处理 | CORS | 2.x |
-| 编码转换 | iconv-lite | 0.7.x |
-| 加密 | crypto-js | 4.x |
-
-### 系统架构
+### 1. 数据获取流程
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        HarmonyOS App                             │
-│                      (南理校园助手 NNLG)                          │
-└─────────────────────────────┬───────────────────────────────────┘
-                              │ HTTP/JSON
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      Node.js Backend                             │
-│                      (jw-backend)                                │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │   Express   │  │   Parser    │  │   Sync      │              │
-│  │   Router    │──│   Cheerio   │──│   Service   │              │
-│  └─────────────┘  └─────────────┘  └──────┬──────┘              │
-│                                            │                     │
-│  ┌─────────────┐                          │                     │
-│  │   Axios     │◄─────────────────────────┘                     │
-│  │   HTTP      │                                                │
-│  └──────┬──────┘                                                │
-└─────────┼───────────────────────────────────────────────────────┘
-          │
-          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    强智教务系统                                   │
-│                  (qzjw.bwgl.cn)                                  │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │   登录页    │  │   课表页    │  │   成绩页    │              │
-│  └─────────────┘  └─────────────┘  └─────────────┘              │
-└─────────────────────────────────────────────────────────────────┘
-          │
-          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    MariaDB                                      │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │  Student    │  │  Course     │  │  Grade      │              │
-│  └─────────────┘  └─────────────┘  └─────────────┘              │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │  Exam       │  │  Plan       │  │  Progress   │              │
-│  └─────────────┘  └─────────────┘  └─────────────┘              │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              数据获取架构                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐  │
+│   │  server.js  │───▶│  api/*.js   │───▶│  parser     │───▶│  encryption │  │
+│   │  (路由入口)  │    │ (数据获取)   │    │ (HTML解析)   │    │ (数据加密)   │  │
+│   └─────────────┘    └──────┬──────┘    └─────────────┘    └─────────────┘  │
+│         │                   │                                              │
+│         │                   ▼                                              │
+│         │            ┌─────────────┐                                       │
+│         │            │   request   │                                       │
+│         │            │ (HTTP请求)   │                                       │
+│         │            └──────┬──────┘                                       │
+│         │                   │                                              │
+│         ▼                   ▼                                              │
+│   ┌─────────────────────────────────────────────────────────────────────┐  │
+│   │                    强智教务系统                                       │  │
+│   │              http://qzjw.bwgl.cn/gllgdxbwglxy_jsxsd                  │  │
+│   └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
----
+### 2. API 接口
 
-## API 接口
+| 接口                          | 方法       | 功能        | 文件              |
+| --------------------------- | -------- | --------- | --------------- |
+| `/api/sync`                 | POST     | 同步学生所有数据  | server.js       |
+| `/api/login`                | POST     | 登录教务系统    | auth.js         |
+| `/api/semester/latest`      | GET      | 获取最新学期    | server.js       |
+| `/api/announcements`        | GET      | 获取公告列表    | announcement.js |
+| `/api/announcements/detail` | GET      | 获取公告详情    | announcement.js |
+| `/api/emptyroom/campuses`   | GET      | 获取校区列表    | emptyroom.js    |
+| `/api/emptyroom/buildings`  | GET      | 获取楼栋列表    | emptyroom.js    |
+| `/api/emptyroom/query`      | POST     | 查询空教室     | emptyroom.js    |
+| `/api/electricity`          | GET      | 查询电费      | electricity.js  |
+| `/api/electricity/settings` | GET/POST | 电费提醒设置    | electricity.js  |
+| `/api/water/scan`           | POST     | 打水服务扫码    | water.js        |
+| `/api/push/register`        | POST     | 注册推送Token | server.js       |
+| `/api/push/unregister`      | POST     | 注销推送Token | server.js       |
+| `/api/push/test`            | POST     | 测试推送功能    | server.js       |
+| `/api/encryption/key`       | GET      | 获取加密密钥    | server.js       |
 
-### 基础接口
+### 3. 数据加密
 
-#### GET /
-
-服务状态检查。
-
-**响应示例：**
-```json
-{
-  "message": "教务系统同步服务已启动",
-  "status": "running"
-}
-```
-
-#### GET /api/version
-
-获取服务版本和部署信息。
-
-**响应示例：**
-```json
-{
-  "name": "jw-backend",
-  "version": "1.0.0",
-  "buildTime": "2025-01-15T10:30:00.000Z",
-  "railway": {
-    "environment": "production",
-    "service": "jw-backend",
-    "gitCommit": "abc123"
-  }
-}
-```
-
----
-
-### 同步接口
-
-#### POST /api/sync
-
-登录教务系统并同步所有数据到数据库。
-
-**请求体：**
-```json
-{
-  "username": "学号",
-  "password": "密码",
-  "semester": "2024-2025-2"  // 可选，指定学期
-}
-```
-
-**响应示例：**
-```json
-{
-  "success": true,
-  "message": "登录成功，课表已同步，其它数据正在后台同步中",
-  "student": {
-    "name": "张三",
-    "gender": "男",
-    "college": "计算机学院",
-    "major": "软件工程",
-    "className": "软件2201班"
-  },
-  "timetableCount": 45,
-  "timetableDebug": {
-    "ok": true,
-    "reason": "synced"
-  }
-}
-```
-
-**错误响应：**
-```json
-{
-  "success": false,
-  "message": "登录失败，请检查学号密码"
-}
-```
-
----
-
-### 查询接口
-
-#### GET /api/student/:id
-
-从数据库获取已缓存的学生数据。
-
-**路径参数：**
-- `id`: 学号
-
-**查询参数：**
-- `semester`: 可选，筛选指定学期的数据
-
-**响应示例：**
-```json
-{
-  "success": true,
-  "data": {
-    "info": {
-      "studentId": "20220001",
-      "name": "张三",
-      "gender": "男",
-      "college": "计算机学院"
-    },
-    "courses": [...],
-    "grades": [...],
-    "exams": [...],
-    "plans": [...],
-    "progress": [...]
-  }
-}
-```
-
-#### GET /api/students
-
-获取所有已缓存的学生列表。
-
-**响应示例：**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "studentId": "20220001",
-      "name": "张三",
-      "lastSync": "2025-01-15T10:30:00.000Z"
-    }
-  ]
-}
-```
-
----
-
-## 数据模型
-
-### Student (学生信息表)
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| studentId | STRING(50) | 学号 (主键) |
-| name | STRING | 姓名 |
-| gender | STRING | 性别 |
-| enrollmentYear | STRING | 入学年份 |
-| className | STRING | 班级 |
-| major | STRING | 专业 |
-| college | STRING | 学院 |
-| lastSync | DATE | 最后同步时间 |
-
-### Course (课程表)
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| studentId | STRING(50) | 学号 (主键) |
-| semester | STRING(50) | 学期 (主键) |
-| name | STRING(100) | 课程名称 (主键) |
-| dayOfWeek | STRING(20) | 星期 (主键) |
-| week | INTEGER | 周次 (主键) |
-| period | STRING(50) | 节次 (主键) |
-| teacher | STRING | 教师 |
-| weeks | STRING | 周次字符串 |
-| location | STRING | 上课地点 |
-| courseType | STRING | 课程类型 |
-| raw | TEXT | 原始数据 |
-
-### Grade (成绩表)
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| studentId | STRING(50) | 学号 (主键) |
-| semester | STRING(50) | 学期 (主键) |
-| courseCode | STRING(50) | 课程编号 (主键) |
-| courseName | STRING | 课程名称 |
-| score | STRING | 成绩 |
-| credit | STRING | 学分 |
-| gradePoint | STRING | 绩点 |
-| courseType | STRING | 课程类型 |
-| examType | STRING | 考试类型 |
-
-### Exam (考试安排表)
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| studentId | STRING(50) | 学号 (主键) |
-| courseName | STRING(100) | 课程名称 (主键) |
-| examTime | STRING(50) | 考试时间 (主键) |
-| location | STRING | 考试地点 |
-| seatNumber | STRING | 座位号 |
-| examType | STRING | 考试类型 |
-| status | STRING | 状态 |
-
-### Plan (培养计划表)
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| studentId | STRING(50) | 学号 (主键) |
-| semester | STRING(50) | 学期 (主键) |
-| courseCode | STRING(50) | 课程编号 (主键) |
-| courseName | STRING | 课程名称 |
-| teachingUnit | STRING | 开课单位 |
-| credit | STRING | 学分 |
-| totalHours | STRING | 总学时 |
-| examType | STRING | 考核方式 |
-| courseAttribute | STRING | 课程属性 |
-| isExam | STRING | 是否考试 |
-
-### Progress (学分进度表)
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| studentId | STRING(50) | 学号 (主键) |
-| category | STRING(50) | 课程体系 (主键) |
-| requiredCredits | STRING | 要求学分 |
-| completedCredits | STRING | 已完成学分 |
-| currentCredits | STRING | 在修学分 |
-| remainingCredits | STRING | 剩余学分 |
-
----
-
-## 核心模块详解
-
-### 1. 登录模块 (auth.js)
-
-模拟浏览器登录教务系统的流程：
-
-```
-1. GET /xk/LoginToXk     → 获取初始 Cookie
-2. 构造登录数据           → Base64 编码用户名密码
-3. POST /xk/LoginToXk    → 提交登录
-4. 检查 302 跳转          → 判断登录是否成功
-5. 返回 Cookie           → 用于后续请求
-```
-
-### 2. 课表解析模块 (parser.js)
-
-课表解析是最复杂的模块，需要处理多种格式：
-
-**解析流程：**
-```
-1. 加载 HTML → Cheerio 解析
-2. 定位课表 → #kbtable 表格
-3. 遍历单元格 → 提取课程信息
-4. 解析周次 → 支持 "1-16周"、"单周"、"双周" 等格式
-5. 解析节次 → 支持 "01-02节"、"05-06-07节" 等格式
-6. 按周拆分 → 每周每节课一条记录
-```
-
-**周次格式支持：**
-- `1-16周` → [1, 2, 3, ..., 16]
-- `1,3,5周` → [1, 3, 5]
-- `1-8周(单)` → [1, 3, 5, 7]
-- `1-8周(双)` → [2, 4, 6, 8]
-- `全部` → 所有周次
-
-### 3. 数据同步模块 (sync.js)
-
-**课表同步优化：**
-- 按学期先清空旧数据，避免周次变更后残留
-- 使用 `bulkCreate` + `updateOnDuplicate` 批量插入
-- 主键去重，避免重复数据
-
-**成绩同步优化：**
-- 同一课程多次考试（补考/重修）只保留最高分
-- 支持等级制成绩映射（优秀=95，良好=85 等）
-
----
-
-## 环境配置
-
-### 环境变量
-
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| PORT | 服务端口 | 3000 |
-
-### 数据库配置
-
-修改 `src/db/index.js` 中的数据库连接配置：
+使用 AES-256-CBC 算法加密敏感数据：
 
 ```javascript
-const sequelize = new Sequelize(
-    'app_db',           // 数据库名
-    'app_backend',      // 用户名
-    'your_password',    // 密码
-    {
-        host: '127.0.0.1',
-        port: 3306,
-        dialect: 'mysql',
-        // ...
-    }
-);
+// 加密配置
+const ALGORITHM = 'aes-256-cbc';
+const KEY_LENGTH = 32;    // 密钥长度 32 字节
+const IV_LENGTH = 16;     // 初始向量 16 字节
+
+// 密钥派生
+key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', KEY_LENGTH);
+
+// 加密格式
+encryptedData = 'ENC:' + cipher.update(data, 'utf8', 'base64') + cipher.final('base64');
 ```
 
----
+**加密字段：**
 
-## 构建与运行
+| 数据类型 | 加密字段                                        |
+| ---- | ------------------------------------------- |
+| 学生信息 | name, gender, className, major, college     |
+| 课程   | name, teacher, location, weeks, courseType  |
+| 成绩   | courseName, score, credit, gradePoint       |
+| 考试   | courseName, location, seatNumber            |
+| 计划   | courseName, teachingUnit, credit            |
+| 进度   | category, requiredCredits, completedCredits |
+
+### 4. 数据库模型
+
+| 模型                  | 说明      | 主要字段                                                         |
+| ------------------- | ------- | ------------------------------------------------------------ |
+| Student             | 学生信息    | studentId, name, className, major, college                   |
+| Course              | 课程表     | studentId, semester, name, dayOfWeek, week, period, location |
+| Grade               | 成绩记录    | studentId, semester, courseCode, courseName, score, credit   |
+| Exam                | 考试安排    | studentId, courseName, examTime, location, seatNumber        |
+| Plan                | 培养计划    | studentId, semester, courseCode, courseName, credit          |
+| Progress            | 学分进度    | studentId, category, requiredCredits, completedCredits       |
+| UserPushToken       | 推送Token | studentId, pushToken, isActive                               |
+| ElectricityReminder | 电费提醒    | studentId, threshold, roomId, enabled                        |
+
+### 5. 推送服务
+
+#### 5.1 推送服务架构
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              推送服务架构                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│   ┌─────────────┐                                                            │
+│   │  前端应用   │                                                            │
+│   │ (HarmonyOS) │                                                            │
+│   └──────┬──────┘                                                            │
+│          │ 1. 获取Push Token (华为SDK)                                        │
+│          │                                                                   │
+│          ├──────────────────────────────┐                                    │
+│          │                              │                                    │
+│          ▼                              ▼                                    │
+│   ┌─────────────┐                 ┌──────────────┐                          │
+│   │  后端API    │                 │ 华为推送服务  │                          │
+│   │ /api/push/  │                 │              │                          │
+│   │  register   │                 └──────┬───────┘                          │
+│   └──────┬──────┘                        │                                  │
+│          │ 2. 存储Token                   │                                  │
+│          ▼                               │                                  │
+│   ┌─────────────┐                        │                                  │
+│   │   数据库    │                        │                                  │
+│   │UserPushToken│                        │                                  │
+│   └─────────────┘                        │                                  │
+│                                           │                                  │
+│          ┌────────────────────────────────┘                                  │
+│          │ 3. 发送推送消息                                                   │
+│          ▼                                                                  │
+│   ┌─────────────────────────────────────────────────────────────────────┐  │
+│   │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐          │  │
+│   │  │ pushService  │───▶│ realtimePush │───▶│   华为API    │          │  │
+│   │  │  (推送封装)   │    │  (实时推送)   │    │              │          │  │
+│   │  └──────────────┘    └──────────────┘    └──────────────┘          │  │
+│   │                                                                     │  │
+│   │  ┌──────────────────────┐    ┌──────────────────────┐             │  │
+│   │  │ notificationMonitor  │    │ electricityMonitor   │             │  │
+│   │  │    (定时监控服务)      │    │   (电费监控服务)      │             │  │
+│   │  └──────────────────────┘    └──────────────────────┘             │  │
+│   └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 5.2 推送类型
+
+| 类型                   | 触发条件      | 说明              | 数据字段                                  |
+| -------------------- | --------- | --------------- | ----------------------------------- |
+| `new_grade`          | 新成绩发布     | 成绩同步时检测到新成绩     | courseName, score, credit, semester |
+| `new_exam`           | 新考试安排     | 考试安排同步时检测到新考试   | courseName, examTime, location      |
+| `exam_reminder`      | 考试提醒      | 考试前24小时提醒       | courseName, examTime, location      |
+| `course_change`      | 课程变动      | 课表变更检测          | changeType, courseName              |
+| `electricity_reminder` | 电费不足      | 余额低于设定阈值        | balance, threshold                  |
+| `announcement`       | 公告通知      | 关键词匹配的教务公告      | title, keyword, url                 |
+
+#### 5.3 推送消息数据结构
+
+```javascript
+{
+    validate_only: false,
+    message: {
+        android: {
+            notification: {
+                title: "通知标题",
+                body: "通知内容",
+                click_action: {
+                    type: 3  // 点击打开应用
+                }
+            }
+        },
+        token: ["设备Token"],  // 单设备推送
+        // 或 topic: "user_xxx",  // 主题订阅推送
+        data: JSON.stringify({
+            type: "new_grade",  // 通知类型
+            courseName: "高等数学",
+            score: "95",
+            credit: "4"
+        })
+    }
+}
+```
+
+#### 5.4 推送API接口
+
+**注册推送Token**
+```bash
+POST /api/push/register
+Content-Type: application/json
+
+{
+    "studentId": "学号",
+    "pushToken": "华为推送Token",
+    "deviceInfo": "设备信息"
+}
+```
+
+**注销推送Token**
+```bash
+POST /api/push/unregister
+Content-Type: application/json
+
+{
+    "studentId": "学号"
+}
+```
+
+**测试推送**
+```bash
+POST /api/push/test
+Content-Type: application/json
+
+{
+    "studentId": "学号",
+    "type": "new_grade",
+    "title": "测试通知",
+    "content": "这是一条测试消息"
+}
+```
+
+#### 5.5 推送服务流程
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                          推送服务完整流程                                    │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  1. 初始化阶段                                                              │
+│     └── pushService.initialize(context)                                  │
+│         └── 配置华为推送SDK                                                 │
+│                                                                          │
+│  2. 注册接收器 (前端)                                                        │
+│     └── pushNotificationService.registerMessageReceiver(ability)         │
+│         └── 监听推送消息                                                    │
+│                                                                          │
+│  3. 获取Push Token (前端)                                                  │
+│     └── pushService.getPushToken()                                       │
+│         └── 调用华为SDK获取设备Token                                         │
+│                                                                          │
+│  4. 注册到后端                                                              │
+│     └── POST /api/push/register { studentId, pushToken }                 │
+│         └── 存储到数据库 UserPushToken表                                    │
+│         └── 注册到监控服务                                                   │
+│                                                                          │
+│  5. 绑定用户 (可选)                                                          │
+│     └── pushService.bindAppProfileId(studentId)                         │
+│         └── 绑定用户ID用于主题订阅                                             │
+│                                                                          │
+│  6. 接收消息 (前端)                                                          │
+│     └── receiveMessage() 回调                                             │
+│         └── 解析消息数据                                                     │
+│         └── 根据type处理不同通知类型                                          │
+│                                                                          │
+│  7. 显示通知 (前端)                                                          │
+│     └── showLocalNotification(title, body, data)                        │
+│         └── 显示系统通知                                                     │
+│         └── 处理用户点击                                                     │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 5.6 监控服务
+
+**公告监控** (notificationMonitor.js)
+- **检查间隔**：每10分钟检查一次
+- **监控来源**：
+  - 教务处：`https://jwc.bwgl.cn/tzgg/`
+  - 文理学院：`https://wlxy.bwgl.cn/tzgg/`
+- **监控关键词**：`重修`、`补考`、`体质健康测试`、`选课`、`补修`、`免修`
+- **推送规则**：标题匹配关键词时推送
+
+**数据监控** (notificationMonitor.js)
+- **检查间隔**：每30分钟检查一次
+- **监控内容**：
+  - 成绩变化：对比课程名+学期
+  - 考试变化：对比课程名+考试时间
+  - 课表变化：检测新增、取消、教室变更
+  - 考试提醒：考试前24小时自动提醒
+
+**电费监控** (electricityMonitor.js)
+- **检查间隔**：每小时检查一次
+- **触发条件**：余额 < 设定阈值
+- **支持校区**：南宁校区、桂林校区
+
+#### 5.7 实时推送
+
+当用户同步数据时,系统会自动检测新数据并立即推送:
+
+```javascript
+// 成绩同步时检测新成绩
+const gradeResults = await syncGrades(username, grades);
+if (gradeResults && gradeResults.length > 0) {
+    for (const result of gradeResults) {
+        if (result.success) {
+            await realtimePush.notifyNewGradeRealtime(username, result.grade);
+        }
+    }
+}
+
+// 考试同步时检测新考试
+const examResults = await syncExams(username, exams);
+if (examResults && examResults.length > 0) {
+    for (const result of examResults) {
+        if (result.success) {
+            await realtimePush.notifyNewExamRealtime(username, result.exam);
+        }
+    }
+}
+```
+
+#### 5.8 匿名推送
+
+为保护用户隐私,推送服务使用哈希生成的匿名ID:
+
+```javascript
+function generateAnonymousId(studentId) {
+    let hash = 0;
+    for (let i = 0; i < studentId.length; i++) {
+        const char = studentId.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return `nnlg_${Math.abs(hash).toString(16)}`;
+}
+```
+
+**示例**：
+- 学号 `20210001` → 匿名ID `nnlg_a1b2c3d`
+- 推送主题 `user_nnlg_a1b2c3d`
+
+## 安装与运行
 
 ### 环境要求
 
-- Node.js 14+
-- MariaDB 10.x
-- npm 或 yarn
+- Node.js >= 18.0.0
+- npm >= 9.0.0
 
 ### 安装依赖
 
 ```bash
+cd f:\jw-backend
 npm install
+```
+
+### 配置环境变量
+
+创建 `.env` 文件：
+
+```env
+# 服务端口
+PORT=3000
+
+# 数据库配置
+DB_DIALECT=sqlite
+DB_STORAGE=./data.db
+
+# 加密密钥 (生产环境请更换)
+ENCRYPTION_KEY=NNLG-HarmonyOS-2024-Secret-Key!!
+ENCRYPTION_IV=NNLG-InitVector16
+
+# 华为推送配置
+HUAWEI_PROJECT_ID=your_project_id
+HUAWEI_CLIENT_ID=your_client_id
+HUAWEI_CLIENT_SECRET=your_client_secret
 ```
 
 ### 启动服务
 
 ```bash
-# 开发环境
-npm start
+# 开发模式
+npm run dev
 
-# 或直接运行
-node server.js
+# 生产模式
+npm start
 ```
 
-### 生产部署
-
-**华为云部署：**
-1. 购买弹性云服务器
-2. 安装 Node.js 和 MariaDB
-3. 配置安全组开放端口
-4. 使用 PM2 守护进程
+### 运行测试
 
 ```bash
-# 安装 PM2
-npm install -g pm2
+# 运行所有测试
+npm test
 
-# 启动服务
-pm2 start server.js --name jw-backend
-
-# 开机自启
-pm2 startup
-pm2 save
+# 运行特定测试
+node tests/test_encryption.js
+node tests/test_parse_timetable.js
 ```
 
----
+## API 使用示例
 
-## 开发规范
+### 同步学生数据
 
-### 命名规范
-
-- **文件名**: camelCase (如 `auth.js`, `student.js`)
-- **变量/函数**: camelCase (如 `getStudentInfo`)
-- **常量**: UPPER_SNAKE_CASE (如 `BASE_URL`)
-- **数据库表**: PascalCase 单数形式 (如 `Student`, `Course`)
-
-### 代码规范
-
-- 使用 ES6+ 语法
-- 使用 async/await 处理异步操作
-- 函数必须有 JSDoc 注释
-- 错误必须捕获并返回友好提示
-
-### 目录规范
-
-```
-src/
-├── api/        # API 接口 - 处理 HTTP 请求
-├── db/         # 数据库 - 模型定义和数据操作
-├── parser/     # 解析器 - HTML 解析逻辑
-└── utils/      # 工具 - 通用工具函数
+```bash
+curl -X POST http://localhost:3000/api/sync \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "学号",
+    "password": "密码",
+    "semester": "2024-2025-1"
+  }'
 ```
 
----
-
-## 错误处理
-
-### 常见错误
-
-| 错误码 | 说明 | 解决方案 |
-|--------|------|----------|
-| 400 | 参数缺失 | 检查请求体是否完整 |
-| 401 | 登录失败 | 检查学号密码是否正确 |
-| 404 | 数据不存在 | 先调用同步接口 |
-| 500 | 服务器错误 | 查看服务器日志 |
-| 503 | 数据库未就绪 | 等待数据库初始化完成 |
-
-### 错误响应格式
+**响应示例：**
 
 ```json
 {
-  "success": false,
-  "message": "错误描述信息"
+  "success": true,
+  "data": {
+    "info": { "name": "ENC:...", "className": "ENC:..." },
+    "courses": [...],
+    "grades": { "2024-2025-1": [...] },
+    "exams": [...],
+    "plans": { "2024-2025-1": [...] },
+    "progress": [...]
+  },
+  "changes": {
+    "newGrades": [...],
+    "newExams": [...]
+  }
 }
 ```
 
----
+### 查询空教室
 
-## 安全注意事项
+```bash
+curl -X POST http://localhost:3000/api/emptyroom/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "semester": "2024-2025-1",
+    "campus": "01",
+    "building": "J01",
+    "weekStart": 1,
+    "weekEnd": 1,
+    "periodStart": "0102",
+    "periodEnd": "0304"
+  }'
+```
 
-1. **密码安全**
-   - 数据库密码字段已移除，不再存储用户密码
-   - 每次同步需要前端传入密码
+### 查询电费
 
-2. **会话管理**
-   - Cookie 仅在内存中使用，不持久化
-   - 会话有效期约 30 分钟
+```bash
+curl "http://localhost:3000/api/electricity?username=学号&roomId=H4320&areaId=glxq&buildingId=4320"
+```
 
-3. **数据安全**
-   - 仅缓存学生自己的数据
-   - 不对外暴露敏感接口
+## 数据同步逻辑
 
----
+### 同步流程
 
-## 更新日志
+```
+POST /api/sync
+    │
+    ├── 1. 登录教务系统
+    │       └── login(username, password) → cookies
+    │
+    ├── 2. 并行获取所有数据
+    │       ├── getStudentInfo(cookies)
+    │       ├── getTimetable(cookies, semester)
+    │       ├── getGrades(cookies)
+    │       ├── getExamSchedule(cookies)
+    │       ├── getSemesterPlan(cookies)
+    │       └── getStudyProgress(cookies)
+    │
+    ├── 3. 同步到数据库
+    │       ├── syncStudent() → 新学生记录
+    │       ├── syncCourses() → 按学期去重
+    │       ├── syncGrades() → 检测新成绩 → 实时推送
+    │       ├── syncExams() → 检测新考试 → 实时推送
+    │       ├── syncPlans() → 培养计划
+    │       └── syncProgress() → 学分进度
+    │
+    └── 4. 返回加密数据
+            └── { info, courses, grades, exams, plans, progress }
+```
 
-### v1.0.0
+### 去重策略
 
-- 实现教务系统登录认证
-- 实现课表数据抓取与解析
-- 实现成绩数据抓取与解析
-- 实现考试安排数据抓取
-- 实现培养计划数据抓取
-- 实现学分进度数据抓取
-- 实现数据缓存与增量更新
-- 支持指定学期查询
-- 优化课表解析算法
-- 添加后台异步同步机制
+- **课程**：按 `(studentId, semester, name, dayOfWeek, week, period)` 去重
+- **成绩**：按 `(studentId, semester, courseCode)` 去重
+- **考试**：按 `(studentId, courseName, examTime)` 去重
+- **计划**：按 `(studentId, semester, courseCode)` 去重
+- **进度**：按 `(studentId, category)` 去重
 
----
+## 监控服务
 
-## 相关项目
+### 电费监控
 
-- [南理校园助手 (NNLG)](../My-HarmonyOS/HarmonyOS-APP/NNLG) - HarmonyOS 前端应用
+- **检查间隔**：每小时检查一次
+- **触发条件**：余额 < 设定阈值
+- **通知方式**：华为推送
+- **支持校区**：南宁校区、桂林校区
+- **服务文件**：`src/services/electricityMonitor.js`
 
----
+**监控流程**：
+```
+每小时触发
+    │
+    ├── 查询所有启用电费提醒的用户
+    │
+    ├── 遍历每个用户
+    │       │
+    │       ├── 查询电费余额
+    │       │
+    │       ├── 判断余额 < 阈值
+    │       │       │
+    │       │       ├── 是 → 发送推送通知
+    │       │       └── 否 → 跳过
+    │       │
+    │       └── 更新最后检查时间
+    │
+    └── 记录监控日志
+```
+
+### 公告监控
+
+- **检查间隔**：每10分钟检查一次
+- **监控来源**：
+  - 教务处：`https://jwc.bwgl.cn/tzgg/`
+  - 文理学院：`https://wlxy.bwgl.cn/tzgg/`
+- **推送规则**：标题匹配关键词时推送
+- **服务文件**：`src/services/notificationMonitor.js`
+
+**监控关键词**：
+- `重修` - 重修通知
+- `补考` - 补考通知
+- `体质健康测试` - 体质健康测试通知
+- `选课` - 选课通知
+- `补修` - 补修通知
+- `免修` - 免修通知
+
+**监控流程**：
+```
+每10分钟触发
+    │
+    ├── 抓取教务处公告列表
+    │
+    ├── 抓取文理学院公告列表
+    │
+    ├── 合并公告列表
+    │
+    ├── 遍历每个公告
+    │       │
+    │       ├── 判断标题是否匹配关键词
+    │       │       │
+    │       │       ├── 匹配 → 推送通知给所有用户
+    │       │       └── 不匹配 → 跳过
+    │       │
+    │       └── 记录已推送公告
+    │
+    └── 记录监控日志
+```
+
+### 数据监控
+
+- **检查间隔**：每30分钟检查一次
+- **服务文件**：`src/services/notificationMonitor.js`
+
+**监控内容**：
+
+| 监控项   | 检测方式              | 推送类型          |
+| ----- | ----------------- | ------------- |
+| 成绩变化  | 对比课程名+学期         | `new_grade`   |
+| 考试变化  | 对比课程名+考试时间       | `new_exam`    |
+| 课表变化  | 检测新增、取消、教室变更     | `course_change` |
+| 考试提醒  | 考试前24小时自动提醒      | `exam_reminder` |
+
+**监控流程**：
+```
+每30分钟触发
+    │
+    ├── 遍历所有注册推送的用户
+    │
+    ├── 对每个用户
+    │       │
+    │       ├── 登录教务系统
+    │       │
+    │       ├── 获取最新成绩
+    │       │       │
+    │       │       ├── 对比数据库中的成绩
+    │       │       ├── 检测新成绩 → 推送通知
+    │       │       └── 更新数据库
+    │       │
+    │       ├── 获取最新考试安排
+    │       │       │
+    │       │       ├── 对比数据库中的考试
+    │       │       ├── 检测新考试 → 推送通知
+    │       │       └── 更新数据库
+    │       │
+    │       ├── 获取最新课表
+    │       │       │
+    │       │       ├── 对比数据库中的课表
+    │       │       ├── 检测课表变动 → 推送通知
+    │       │       └── 更新数据库
+    │       │
+    │       └── 检查考试提醒
+    │               │
+    │               ├── 查找24小时内的考试
+    │               └── 发送考试提醒推送
+    │
+    └── 记录监控日志
+```
+
+### 实时推送
+
+当用户主动同步数据时,系统会立即检测新数据并推送:
+
+**服务文件**：`src/services/realtimePush.js`
+
+**推送时机**：
+- 用户调用 `/api/sync` 接口时
+- 检测到新成绩 → 立即推送
+- 检测到新考试 → 立即推送
+- 检测到课表变动 → 立即推送
+
+**优势**：
+- 无需等待定时监控
+- 用户第一时间收到通知
+- 减轻服务器定时任务压力
+
+## 与前端协作
+
+### 数据同步流程
+
+前端 HarmonyOS 应用通过以下流程获取数据：
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              前后端协作流程                                    │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────┐                      ┌─────────────┐                        │
+│  │ HarmonyOS   │                      │   后端服务   │                        │
+│  │ 前端应用     │                      │  (本项目)    │                        │
+│  └──────┬──────┘                      └──────┬──────┘                        │
+│         │                                    │                               │
+│         │  1. POST /api/sync                 │                               │
+│         │  { username, password }            │                               │
+│         │ ─────────────────────────────────▶ │                               │
+│         │                                    │                               │
+│         │                                    │ 2. 登录教务系统                │
+│         │                                    │    抓取并解析数据              │
+│         │                                    │    加密敏感字段                │
+│         │                                    │                               │
+│         │  3. 返回加密数据                    │                               │
+│         │  { info: ENC:..., courses: [...] } │                               │
+│         │ ◀───────────────────────────────── │                               │
+│         │                                    │                               │
+│         │  4. GET /api/encryption/key        │                               │
+│         │ ─────────────────────────────────▶ │                               │
+│         │                                    │                               │
+│         │  5. 返回密钥                        │                               │
+│         │  { key: base64, iv: base64 }       │                               │
+│         │ ◀───────────────────────────────── │                               │
+│         │                                    │                               │
+│         │  6. 解密数据并存储到本地             │                               │
+│         │                                    │                               │
+│         ▼                                    ▼                               │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 推送服务集成流程
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                          推送服务集成流程                                      │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  前端 (HarmonyOS)                          后端 (Node.js)                    │
+│  ──────────────────                        ──────────────                    │
+│                                                                              │
+│  1. 初始化推送服务                                                              │
+│     pushService.initialize(context)                                          │
+│                                                                              │
+│  2. 注册消息接收器 ✅ 新增                                                       │
+│     pushService.registerMessageReceiver(this)                                │
+│     └── 监听华为推送消息                                                        │
+│                                                                              │
+│  3. 获取Push Token                                                            │
+│     const token = await pushService.getToken()                               │
+│                                                                              │
+│  4. 注册到后端                           ┌─────────────────────────┐         │
+│     POST /api/push/register           │  存储Token到数据库        │         │
+│     { studentId, token }  ──────────▶ │  注册到监控服务           │         │
+│                                        └─────────────────────────┘         │
+│                                                                              │
+│  5. 绑定用户ID (可选)                                                           │
+│     pushService.bindAppProfileId(studentId)                                  │
+│                                                                              │
+│  6. 接收推送消息                                                                │
+│     receiveMessage(message) {                                                │
+│         const data = JSON.parse(message.data)                                │
+│         switch(data.type) {                                                  │
+│             case 'new_grade':                                                │
+│                 showGradeNotification(data)                                  │
+│                 break                                                        │
+│             case 'new_exam':                                                 │
+│                 showExamNotification(data)                                   │
+│                 break                                                        │
+│             // ... 其他类型                                                    │
+│         }                                                                    │
+│     }                                                                        │
+│                                                                              │
+│  7. 显示本地通知                                                                │
+│     notificationManager.publish({                                            │
+│         title: message.title,                                                │
+│         body: message.body,                                                  │
+│         extraData: data                                                      │
+│     })                                                                       │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 前端推送服务配置
+
+**build-profile.json5**
+```json5
+{
+    "app": {
+        "products": [
+            {
+                "name": "default",
+                "signingConfig": "default",
+                "capabilities": {
+                    "system": [
+                        "PushKit"  // 华为推送服务
+                    ]
+                }
+            }
+        ]
+    }
+}
+```
+
+**EntryAbility.ets**
+```typescript
+import pushService from './services/PushNotificationService';
+
+export default class EntryAbility extends UIAbility {
+    onCreate(want: Want, launchParam: AbilityConstant.LaunchParam) {
+        // 初始化推送服务
+        pushService.initialize(this.context);
+        
+        // 注册消息接收器 ✅ 新增
+        pushService.registerMessageReceiver(this);
+    }
+    
+    // 接收推送消息回调
+    receiveMessage(message: pushService.PushMessage) {
+        const data = JSON.parse(message.data);
+        this.handlePushMessage(data);
+    }
+    
+    private handlePushMessage(data: any) {
+        switch (data.type) {
+            case 'new_grade':
+                this.showGradeNotification(data);
+                break;
+            case 'new_exam':
+                this.showExamNotification(data);
+                break;
+            case 'exam_reminder':
+                this.showExamReminder(data);
+                break;
+            case 'course_change':
+                this.showCourseChangeNotification(data);
+                break;
+            case 'electricity_reminder':
+                this.showElectricityNotification(data);
+                break;
+            case 'announcement':
+                this.showAnnouncementNotification(data);
+                break;
+        }
+    }
+}
+```
+
+**PushNotificationService.ets**
+```typescript
+import push from '@ohos.push';
+
+export default class PushNotificationService {
+    private context: Context;
+    private receiver: any;
+    
+    async initialize(context: Context) {
+        this.context = context;
+        // 初始化华为推送SDK
+        await push.init(context);
+    }
+    
+    // 注册消息接收器 ✅ 新增
+    registerMessageReceiver(receiver: any) {
+        this.receiver = receiver;
+        push.on('pushMessageReceived', (message) => {
+            if (this.receiver && this.receiver.receiveMessage) {
+                this.receiver.receiveMessage(message);
+            }
+        });
+    }
+    
+    async getPushToken(): Promise<string> {
+        const token = await push.getToken();
+        return token;
+    }
+    
+    async bindAppProfileId(userId: string) {
+        await push.bindAppProfileId(userId);
+    }
+    
+    async registerToBackend(studentId: string, token: string) {
+        const response = await fetch('/api/push/register', {
+            method: 'POST',
+            body: JSON.stringify({
+                studentId: studentId,
+                pushToken: token,
+                deviceInfo: 'HarmonyOS'
+            })
+        });
+        return response.json();
+    }
+}
+```
+
+## 安全特性
+
+| 特性   | 说明                   |
+| ---- | -------------------- |
+| 传输加密 | AES-256-CBC 加密所有敏感数据 |
+| 密钥派生 | 使用 scrypt 从密码派生密钥    |
+| 数据标识 | 加密数据以 `ENC:` 前缀标识    |
+| 密钥分发 | 通过独立 API 分发密钥，支持动态更新 |
+| 匿名推送 | 使用哈希生成的匿名ID进行推送      |
+
+## 常见问题
+
+### Q: 登录失败怎么办？
+
+A: 检查以下几点：
+
+1. 学号密码是否正确
+2. 教务系统是否可访问
+3. 网络连接是否正常
+
+### Q: 推送不生效？
+
+A: 确认：
+
+1. **华为推送配置是否正确**
+   - 检查 `.env` 文件中的 `HUAWEI_PROJECT_ID`、`HUAWEI_CLIENT_ID`、`HUAWEI_CLIENT_SECRET`
+   - 确认华为开发者平台配置正确
+
+2. **前端是否正确注册**
+   - 确认调用了 `pushService.registerMessageReceiver(this)`
+   - 确认获取到了 Push Token
+   - 确认调用了 `/api/push/register` 接口
+
+3. **设备权限**
+   - 设备是否允许推送通知
+   - HarmonyOS 是否配置了 PushKit 权限
+
+4. **后端日志检查**
+   ```bash
+   # 查看推送服务日志
+   grep "PushService" logs/app.log
+   grep "Push token" logs/app.log
+   ```
+
+### Q: 推送Token注册失败？
+
+A: 检查：
+
+1. **前端获取Token失败**
+   - 确认华为推送SDK初始化成功
+   - 确认设备网络连接正常
+   - 查看华为推送服务状态
+
+2. **后端注册失败**
+   - 检查数据库连接是否正常
+   - 确认 `UserPushToken` 表是否存在
+   - 查看后端错误日志
+
+3. **测试推送Token注册**
+   ```bash
+   curl -X POST http://localhost:3000/api/push/register \
+     -H "Content-Type: application/json" \
+     -d '{
+       "studentId": "测试学号",
+       "pushToken": "测试Token",
+       "deviceInfo": "测试设备"
+     }'
+   ```
+
+### Q: 电费查询失败？
+
+A: 检查：
+
+1. 校园一信通账号密码是否正确
+2. 房间号格式是否正确
+3. 校区/楼栋ID是否匹配
+
+### Q: 如何测试推送功能？
+
+A: 使用测试接口：
+
+```bash
+# 测试推送
+curl -X POST http://localhost:3000/api/push/test \
+  -H "Content-Type: application/json" \
+  -d '{
+    "studentId": "学号",
+    "type": "new_grade",
+    "title": "测试通知",
+    "content": "这是一条测试消息"
+  }'
+```
+
+### Q: 推送消息格式是什么？
+
+A: 推送消息格式：
+
+```javascript
+{
+    "android": {
+        "notification": {
+            "title": "通知标题",
+            "body": "通知内容",
+            "click_action": { "type": 3 }
+        }
+    },
+    "data": "{\"type\":\"new_grade\",\"courseName\":\"高等数学\",\"score\":\"95\"}"
+}
+```
+
+前端接收后需要解析 `data` 字段获取具体信息。
+
+### Q: 如何查看推送服务状态？
+
+A: 查看后端日志：
+
+```bash
+# 查看推送服务启动状态
+grep "Push notifications" logs/app.log
+
+# 查看监控服务状态
+grep "monitoring service" logs/app.log
+
+# 查看推送发送记录
+grep "Push sent" logs/app.log
+
+# 查看推送错误
+grep "Failed to send push" logs/app.log
+```
+
+### Q: 前端如何处理不同类型的推送？
+
+A: 根据 `data.type` 字段处理：
+
+```typescript
+switch (data.type) {
+    case 'new_grade':
+        // 跳转到成绩页面
+        router.push({ url: 'pages/GradePage' });
+        break;
+    case 'new_exam':
+        // 跳转到考试页面
+        router.push({ url: 'pages/ExamPage' });
+        break;
+    case 'exam_reminder':
+        // 显示考试提醒
+        showExamReminder(data);
+        break;
+    case 'course_change':
+        // 跳转到课表页面
+        router.push({ url: 'pages/TimetablePage' });
+        break;
+    case 'electricity_reminder':
+        // 跳转到电费页面
+        router.push({ url: 'pages/ElectricityPage' });
+        break;
+    case 'announcement':
+        // 打开公告详情
+        openAnnouncement(data.url);
+        break;
+}
+```
 
 ## 许可证
 
-本项目仅供学习交流使用，请勿用于商业用途。
+MIT License
+
+## 相关项目
+
+- [QinXu HarmonyOS App](https://github.com/your-repo/qinxu) - HarmonyOS 原生应用前端
+
