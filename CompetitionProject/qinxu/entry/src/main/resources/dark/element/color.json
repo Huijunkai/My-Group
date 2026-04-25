@@ -1,0 +1,144 @@
+{
+  "color": [
+    {
+      "name": "start_window_background",
+      "value": "#000000"
+    },
+    {
+      "name": "background_primary",
+      "value": "#1C1C1E"
+    },
+    {
+      "name": "background_secondary",
+      "value": "#2C2C2E"
+    },
+    {
+      "name": "background_tertiary",
+      "value": "#3A3A3C"
+    },
+    {
+      "name": "background_quaternary",
+      "value": "#3A3A3C"
+    },
+    {
+      "name": "background_quinary",
+      "value": "#3A3A3C"
+    },
+    {
+      "name": "page_bg",
+      "value": "#000000"
+    },
+    {
+      "name": "card_bg",
+      "value": "#1C1C1E"
+    },
+    {
+      "name": "input_bg",
+      "value": "#2C2C2E"
+    },
+    {
+      "name": "text_primary",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "text_secondary",
+      "value": "#EBEBF5"
+    },
+    {
+      "name": "text_tertiary",
+      "value": "#8E8E93"
+    },
+    {
+      "name": "primary",
+      "value": "#4A90D9"
+    },
+    {
+      "name": "primary_light",
+      "value": "#1890FF"
+    },
+    {
+      "name": "primary_dark",
+      "value": "#0A84FF"
+    },
+    {
+      "name": "success",
+      "value": "#32D74B"
+    },
+    {
+      "name": "success_light",
+      "value": "#1C3D1C"
+    },
+    {
+      "name": "warning",
+      "value": "#FA8C16"
+    },
+    {
+      "name": "warning_light",
+      "value": "#3D3D1C"
+    },
+    {
+      "name": "danger",
+      "value": "#FF453A"
+    },
+    {
+      "name": "danger_light",
+      "value": "#3D1F1F"
+    },
+    {
+      "name": "error",
+      "value": "#FF453A"
+    },
+    {
+      "name": "error_light",
+      "value": "#3D1F1F"
+    },
+    {
+      "name": "info",
+      "value": "#0A84FF"
+    },
+    {
+      "name": "info_light",
+      "value": "#1C2C3D"
+    },
+    {
+      "name": "border",
+      "value": "#3A3A4A"
+    },
+    {
+      "name": "divider",
+      "value": "#404050"
+    },
+    {
+      "name": "slider_track",
+      "value": "#3A3A3C"
+    },
+    {
+      "name": "button_text",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "overlay",
+      "value": "#B3000000"
+    },
+    {
+      "name": "Menubar",
+      "value": "#2A2A3A"
+    },
+    {
+      "name": "glass_background",
+      "value": "#802A2A3A"
+    },
+    {
+      "name": "menubar_glow",
+      "value": "#2E4A90D9"
+    },
+    {
+      "name": "menubar_indicator",
+      "value": "#4A90D9"
+    },
+    {
+      "name": "menubar_highlight",
+      "value": "#14FFFFFF"
+    }
+  ]
+}
