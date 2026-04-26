@@ -6,7 +6,7 @@
         "signingConfig": "debug",
         "compileSdkVersion": "6.1.0(23)",
         "targetSdkVersion": "6.1.0(23)",
-        "compatibleSdkVersion": "6.0.2(22)",
+        "compatibleSdkVersion": "6.1.0(23)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
           "strictMode": {
@@ -54,13 +54,13 @@
         "name": "debug",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "F:/My-HarmonyOS/HarmonyOS-APP/qinxu/qinxu.cer",
+          "storeFile": "F:/My-Group/CompetitionProject/qinxu/qinxu.p12",
+          "storePassword": "0000001A191DEB684E6FEB1A1F144E811997E02169211F62E19CAEB21060130F90B04A8C740243713C0F",
           "keyAlias": "yiqi",
-          "keyPassword": "0000001A9CE346249299626CF0F9E10CD719B2BB576EC2E333EB9CADC96E5A7D889DDBA69A6B64F4831D",
-          "profile": "F:/My-HarmonyOS/HarmonyOS-APP/qinxu/qinxuDebug.p7b",
+          "keyPassword": "0000001A264B932C4EEB387006C85F5A9931FD48F4B5006A70AA427551DD0CC5F41C8CF43CB126611B35",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "F:/My-HarmonyOS/HarmonyOS-APP/qinxu/qinxu.p12",
-          "storePassword": "0000001A69AA2CDA4858E2C3EA0696961ED8E09F65FA0AF3C276C4B17D4BF6A0469E61764FCC65ACA590"
+          "profile": "F:/My-Group/CompetitionProject/qinxu/qinxuDebug.p7b",
+          "certpath": "F:/My-Group/CompetitionProject/qinxu/qinxu.cer"
         }
       },
       {
