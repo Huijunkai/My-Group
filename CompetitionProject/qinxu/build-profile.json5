@@ -4,8 +4,8 @@
       {
         "name": "default",
         "signingConfig": "debug",
-        "compileSdkVersion": "6.0.2(22)",
-        "targetSdkVersion": "6.0.2(22)",
+        "compileSdkVersion": "6.1.0(23)",
+        "targetSdkVersion": "6.1.0(23)",
         "compatibleSdkVersion": "6.0.2(22)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
@@ -18,8 +18,8 @@
       {
         "name": "debug",
         "signingConfig": "debug",
-        "compileSdkVersion": "6.0.2(22)",
-        "targetSdkVersion": "6.0.2(22)",
+        "compileSdkVersion": "6.1.0(23)",
+        "targetSdkVersion": "6.1.0(23)",
         "compatibleSdkVersion": "6.0.2(22)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
@@ -32,8 +32,8 @@
       {
         "name": "release",
         "signingConfig": "release",
-        "compileSdkVersion": "6.0.2(22)",
-        "targetSdkVersion": "6.0.2(22)",
+        "compileSdkVersion": "6.1.0(23)",
+        "targetSdkVersion": "6.1.0(23)",
         "compatibleSdkVersion": "6.0.2(22)",
         "runtimeOS": "HarmonyOS"
       }
@@ -82,20 +82,20 @@
         "bundleName": "com.example.qinxu",
         "config": [
           {
-            "name": "Push Kit",
-            "capability": "com.huawei.service.push.base_service"
+            "capability": "com.huawei.service.push.base_service",
+            "name": "Push Kit"
           },
           {
-            "name": "Device status detection",
-            "capability": "com.huawei.service.device_security.device_verify"
+            "capability": "com.huawei.service.device_security.device_verify",
+            "name": "Device status detection"
           },
           {
-            "name": "Map Kit",
-            "capability": "com.huawei.service.mapkit"
+            "capability": "com.huawei.service.mapkit",
+            "name": "Map Kit"
           },
           {
-            "name": "Safety Detect",
-            "capability": "com.huawei.service.device_security.safety_detect"
+            "capability": "com.huawei.service.device_security.safety_detect",
+            "name": "Safety Detect"
           }
         ]
       }
