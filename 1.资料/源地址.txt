@@ -1,0 +1,17 @@
+https://pypi.tuna.tsinghua.edu.cn/simple
+
+阿里云官方镜像站：https://developer.aliyun.com/mirror/
+
+华为开源镜像站：https://mirrors.huaweicloud.com/home
+
+网易开源镜像站：http://mirrors.163.com/
+
+腾讯软件源：https://mirrors.cloud.tencent.com/
+
+清华大学开源软件镜像站：https://mirrors.tuna.tsinghua.edu.cn/
+
+北京大学开源软件镜像站：http://mirrors.pku.edu.cn/Mirrors
+
+华中科技大学开源镜像站：http://mirrors.hust.edu.cn/
+
+中国科学技术大学Mirror：https://chinanet.mirrors.ustc.edu.cn/
