@@ -1,0 +1,11 @@
+student_id,name,math,english,science
+1,Alice,85,88,92
+2,Bob,92,79,88
+3,Cathy,,93,84
+4,David,88,,90
+5,Eva,90,82,86
+6,Frank,76,84,
+7,Grace,,78,87
+8,Henry,95,91,93
+9,Ivy,82,,89
+10,Jack,79,85,

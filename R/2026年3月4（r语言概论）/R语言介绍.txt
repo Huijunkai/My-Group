@@ -1,0 +1,83 @@
+1.注释方式
+（1）单行注释：#
+（2）多行注释：''''
+
+2.变量命名规则
+变量名只能由：字母、数字、下划线、点组成，且数字和下划线作为变量名的第一个字符是不允许的，变量名区分大小写，不能使用R语言的保留字，点开头的变量后面不能是数字，点开头的变量名后不能使用数字。
+建议使用有意义的变量名，多个单词组成的变量名可以使用驼峰命名法（如：myVariableName）或下划线命名法（如：my_variable_name）。
+
+3.变量赋值运算符
+R语言中有两种赋值运算符：<- 和 =，其中<-是R语言的传统赋值运算符，而=在某些情况下也可以用来进行赋值，但在函数参数中使用=更为常见。建议在代码中统一使用<-进行变量赋值，以保持代码的一致性和可读性。
+（1）向左赋值：<-, <<-, =  如：x <- 2, x <<- 2, x = 2
+（2）向右赋值：->, ->>     如：2 -> x, 2 ->> x
+
+
+4.运算符
+（1）基本运算符：+（加）、-（减）、*（乘）、/（除）
+（2）特殊运算符：^(幂)，%%（整除求余），%/%（整除）
+（3）关系运算符：==（等于），!=（不等于），>（大于），<（小于），>=（大于等于），<=（小于等于）（运算结果只有两种：TRUE 或 FALSE）
+（4）逻辑运算符：&（与）{符号两边都要执行}，|（或），!（非），&&（短路与：当符号左边为false时，符号右边不执行），||（短路或）{当符号左边为true时，符号右边不执行}。
+
+5.常用的函数
+（1）sqrt(n)：求n的平方根
+（2）abs(n)：求n的绝对值
+（3）round(n, digits)：将n四舍五入到指定的小数位数digits
+（4）ceiling(n)：求n的上取整
+（5）floor(n)：求n的下取整
+（6）exp(n)：求e的n次幂
+（7）log(n, base)：求n的以base为底的对数，默认base为e
+（8）length(x)：求对象x的长度
+（9）
+
+6.数据类型
+基本数据类型：
+（1）数字
+（2）文本：由单引号或双引号引用的内容，也叫字符串
+（3）逻辑值：True或False
+
+7对象数据类型：
+（1）列表（list）：创建方式，使用list函数创建，如：my_list <- list(1, "a", TRUE)，my_list[[1]]访问列表中的第一个元素
+（2）数组（array）：创建方式，使用array函数创建，如：my_array <- array(1:12, dim = c(3, 4))，my_array[1, 2]访问数组中的第一行第二列元素
+（3）矩阵（matrix）:创建方式，使用matrix函数创建，如：my_matrix <- matrix(1:6, nrow = 2, ncol = 3)，my_matrix[1, 2]访问矩阵中的第一行第二列元素
+eg. v2 = c(3,4,5,6,7,8)
+
+    m1 = matrix(v2, nrow = 3, ncol = 2)
+    print(m1)
+（4）因子（factor）
+（5）数据框（data frame）
+（6）向量（vector）：创建方式，使用c函数创建，如：v1 = c(1, 2, 3)，v2 <- c("a", "b", "c")，v3 <- c(TRUE, FALSE, TRUE)
+
+7.选择语句
+（1） if语句：
+if (condition) {
+  # code to execute if condition is true
+} else {
+  # code to execute if condition is false
+}
+（2）switch语句：
+switch(expression,
+       case1 = { # code to execute if expression matches case1 },
+       case2 = { # code to execute if expression matches case2 },
+       ...
+       default = { # code to execute if expression does not match any case }
+)
+
+8.循环语句
+（1）for循环：
+for (variable in sequence) {
+    # code to execute for each value of variable in sequence
+    }
+（2）while循环：
+while (condition) {
+    # code to execute as long as condition is true
+    }
+（3）repeat循环：
+repeat {
+    # code to execute repeatedly until a break statement is encountered
+    if (condition) {
+        break
+    }
+}
+
+break语句：用于退出循环或switch语句
+next语句：用于跳过当前循环的剩余部分，并继续下一次循环

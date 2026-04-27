@@ -1,0 +1,189 @@
+1.注释方式
+（1）单行注释：#
+（2）多行注释：''''
+
+2.变量命名规则
+变量名只能由：字母、数字、下划线、点组成，且数字和下划线作为变量名的第一个字符
+是不允许的，变量名区分大小写，不能使用R语言的保留字，点开头的变量后面不能是数字，
+点开头的变量名后不能使用数字。
+建议使用有意义的变量名，多个单词组成的变量名可以使用驼峰命名法
+（如：myVariableName）或下划线命名法（如：my_variable_name）。
+
+3.变量赋值运算符
+R语言中有两种赋值运算符：<- 和 =，其中<-是R语言的传统赋值运算符，
+而=在某些情况下也可以用来进行赋值，但在函数参数中使用=更为常见。
+建议在代码中统一使用<-进行变量赋值，以保持代码的一致性和可读性。
+（1）向左赋值：<-, <<-, =  如：x <- 2, x <<- 2, x = 2
+（2）向右赋值：->, ->>     如：2 -> x, 2 ->> x
+
+
+4.运算符
+（1）基本运算符：+（加）、-（减）、*（乘）、/（除）
+（2）特殊运算符：^(幂)，%%（整除求余），%/%（整除）
+（3）关系运算符：==（等于），!=（不等于），>（大于），<（小于），>=（大于等于），
+    <=（小于等于）（运算结果只有两种：TRUE 或 FALSE）
+（4）逻辑运算符：&（与）{符号两边都要执行}，|（或），!（非），
+    &&（短路与：当符号左边为false时，符号右边不执行），
+    ||（短路或）{当符号左边为true时，符号右边不执行}。
+
+5.常用的函数
+（1）sqrt(n)：求n的平方根
+（2）abs(n)：求n的绝对值
+（3）round(n, digits)：将n四舍五入到指定的小数位数digits
+（4）ceiling(n)：求n的上取整
+（5）floor(n)：求n的下取整
+（6）exp(n)：求e的n次幂
+（7）log(n, base)：求n的以base为底的对数，默认base为e
+（8）length(x)：求对象x的长度
+
+6.数据类型
+基本数据类型：
+（1）数字
+（2）文本：由单引号或双引号引用的内容，也叫字符串
+（3）逻辑值：True或False
+
+7对象数据类型：
+（1）列表（list）：创建方式，使用list函数创建，
+    如：my_list <- list(1, "a", TRUE)，my_list[[1]]访问列表中的第一个元素
+（2）数组（array）：创建方式，使用array函数创建，  
+    如：my_array <- array(1:12, dim = c(3, 4))，my_array[1, 2]访问
+    数组中的第一行第二列元素
+（3）矩阵（matrix）:创建方式，使用matrix函数创建，
+    如：my_matrix <- matrix(1:6, nrow = 2, ncol = 3)，my_matrix[1, 2]访问
+    矩阵中的第一行第二列元素
+eg. v2 = c(3,4,5,6,7,8)
+
+    m1 = matrix(v2, nrow = 3, ncol = 2)
+    print(m1)
+（4）因子（factor）
+（5）数据框（data frame）
+（6）向量（vector）：创建方式，使用c函数创建，
+    如：v1 = c(1, 2, 3)，v2 <- c("a", "b", "c")，v3 <- c(TRUE, FALSE, TRUE)
+
+7.选择语句
+（1） if语句：
+if (condition) {
+  # code to execute if condition is true
+} else {
+  # code to execute if condition is false
+}
+（2）switch语句：
+switch(expression,
+       case1 = { # code to execute if expression matches case1 },
+       case2 = { # code to execute if expression matches case2 },
+       ...
+       default = { # code to execute if expression does not match any case }
+)
+
+8.循环语句
+（1）for循环：
+for (variable in sequence) {
+    # code to execute for each value of variable in sequence
+    }
+（2）while循环：
+while (condition) {
+    # code to execute as long as condition is true
+    }
+（3）repeat循环：
+repeat {
+    # code to execute repeatedly until a break statement is encountered
+    if (condition) {
+        break
+    }
+}
+
+break语句：用于退出循环或switch语句
+next语句：用于跳过当前循环的剩余部分，并继续下一次循环
+
+9.字符串
+（1）定义：就是用单引号或双引号引起来的内容
+（2）常用方法
+    paste()函数：使用指定符号拼接字符串
+    gsub()函数：使用正则表达式替换字符串中的内容
+    cat()函数：将多个字符串连接成一个字符串
+    totlower()函数：将字符串转换为小写
+    toupper()函数：将字符串转换为大写
+    nchar()函数：返回字符串的长度
+    strsplit()函数：将字符串分割成一个字符串向量
+    format()函数：格式化字符串
+                X:表示输入的数据向量
+                digits:表示小数点后的位数
+                nsmall:表示小数点后至少要保留的位数
+                scientific:表示是否使用科学计数法
+                width:表示输出字符串的最小宽度
+                justify:表示字符串的对齐方式，
+                        可以是"left"、"right"或"center"
+    substring()函数：提取字符串的子字符串
+                x:表示输入的字符串
+                first:表示要提取的子字符串的起始位置
+                last:表示要提取的子字符串的结束位置
+10.列表:列表可以包含任意类型数据
+（1）列表的操作：增，删，改，取值，这些操作都是通过索引下标来实现的，
+    列表的索引下标从1开始。
+（2）删除的操作：是通过给对应的下标位置赋值为NULL来实现的，
+    如：my_list[2] = NULL
+（3）修改的操作：是通过给对应的下标位置赋值新的内容来实现的，
+    如：my_list[2] = "new_value"
+
+11.矩阵:
+（1）matrix的创建：使用matrix函数创建，
+    如：my_matrix <- matrix(1:6, nrow = 2, ncol = 3)
+（2）矩阵的运算：+，-，*，/，%*%（矩阵乘法），t()（转置），solve()（求逆矩阵）
+     PS:使用*进行矩阵运算时，是对矩阵中的每个元素进行运算，而不是进行矩阵乘法运算。
+        使用%*%进行矩阵乘法运算时，是按照矩阵乘法的规则进行运算的。
+
+12.数组:
+  (1) 语法格式：array(data, dim = c(dim1, dim2, ...), 
+                dimnames = list(name1, name2, ...))
+  (2) data:表示数组中的数据，可以是一个向量，也可以是一个矩阵
+  (3) dim:表示数组的维度，是一个整数向量，表示每个维度的长度
+  (4) dimnames:表示数组的维度名称，是一个列表，每个元素都是一
+                个字符向量，表示对应维度的名称
+  (5) 数组的访问：使用索引下标来访问数组中的元素，数组的索引下标从1开始，
+                如：my_array[1, 2, 3]访问数组中的第一维第二行第三列元素
+
+  如果要删除数组中的某个元素，可以使用NA来表示缺失值，
+  如：my_array[1, 2, 3] = NA
+
+13.因子:
+（1）定义：因子是一种特殊的数据类型，用于表示分类数据，
+        因子可以有一个或多个水平（levels），每个水平代表一个类别。
+（2）创建：使用factor函数创建，如：my_factor <- factor(c("A",
+"B", "A", "C"), 水平值：levels = c("A", "B", "C"))，
+labels参数用于指定因子的水平名称，默认情况下，因子的水平名称是根据输入数据自动生成的。
+exclude参数用于指定要排除的水平值，默认情况下，因子包含所有输入数据中的水平值。
+orders参数用于指定因子的水平值的顺序，默认情况下，因子的水平值是按照输入数据中的顺序排列的。
+nmax参数用于指定因子中水平值的最大数量，默认情况下，因子中水平值的数量没有限制。
+nmin参数用于指定因子中水平值的最小数量，默认情况下，因子中水平值的数量没有限制。
+
+（3）访问：使用索引下标来访问因子中的元素，因子的
+索引下标从1开始，如：my_factor[1]访问因子中的第一个元素
+（4）修改：可以通过给对应的下标位置赋值新的内容来修改
+因子中的元素，如：my_factor[1] = "B"
+（5）删除：可以通过给对应的下标位置赋值为NA来删除因子中的元素，如：my_factor[1] = NA
+14.数据框:
+（1）定义：数据框是一种特殊的数据类型，用于表示表格数据，
+数据框由行和列组成，每列可以包含不同类型的数据。
+（2）创建：使用data.frame函数创建，如：my_data_frame <- data.frame(id = c(1, 2, 3), name = c("Alice", "Bob", "Charlie"), age = c(25, 30, 35))
+（3）访问：使用索引下标来访问数据框中的元素，数据框
+的索引下标从1开始，如：my_data_frame[1, 2]访问数据框中的第一行第二列元素
+（4）修改：可以通过给对应的下标位置赋值新的内容来修改数据框中的元素，如：my_data_frame[1, 2] = "David"
+（5）删除：可以通过给对应的下标位置赋值为NA来删除数据框中的元素，如：my_data_frame[1, 2] = NA
+（6）合并数据框：可以使用rbind函数按行合并数据框，使用cbind函数按列合并数据框，如：new_data_frame <- rbind(my_data_frame, new_row)，new_data_frame <- cbind(my_data_frame, new_column)
+（7）添加新列：可以通过给数据框添加新的列来添加新列，如：my_data_frame$new_column <- c("value1", "value2", "value3")
+（8） %>%操作符：用于连接多个数据处理步骤，使代码更简洁和易读，如：my_data_frame %>% filter(age > 30) %>% select(name)
+15.向量:
+（1）定义：向量是一种特殊的数据类型，用于表示一维数据，
+向量可以包含不同类型的数据，但同一向量中的所有元素必须具有相同的数据类型。
+（2）创建：使用c函数创建，如：v1 = c(1, 2, 3)，v2 <- c("a", "b", "c")，v3 <- c(TRUE, FALSE, TRUE)
+（3）访问：使用索引下标来访问向量中的元素，向量的索引下标从1开始，如：v1[1]访问向量v1中的第一个元素
+（4）修改：可以通过给对应的下标位置赋值新的内容来修改向量中的元素，如：v1[1] = 10
+（5）删除：可以通过给对应的下标位置赋值为NA来删除向量中的元素，如：v1[1] = NA
+常见的几何对象：
+（1）散点图：geom_point()
+（2）折线图：geom_line()
+（3）条形图：geom_bar()或geom_col()
+（4）直方图：geom_histogram()
+（5）箱线图：geom_boxplot()
+（6）密度图：geom_density()
+（7）平滑线：geom_smooth()

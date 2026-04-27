@@ -3,7 +3,7 @@ import json
 import sys
 
 # 配置后端基础地址
-BASE_URL = "http://localhost:3000"
+BASE_URL = "http://124.70.92.199:3001"
 
 def test_sync_and_query(username, password, semester):
     """
