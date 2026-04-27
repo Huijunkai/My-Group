@@ -1,0 +1,33 @@
+1.线性回归
+(1) lm(): 简单或多元线性回归
+(2) plot():回归诊断图
+(3) step:设置逐步回归
+
+2.逻辑回归
+(1) glm(family = binomial):广义线性模型
+(2) 预测概率与分类阈值
+(3) 混淆矩阵、POC曲线、AUC
+
+3.泊松回归
+(1) glm(family = poisson)
+(2) 便宜量(offset) 处理不同暴露时间
+(3) 过离散检验(dispersiontest from AER)
+
+4.混合效应模型
+(1) 固定效应与随机效应的比较
+    使用lme4包中的:lmer()和glmer()方法
+    随机矩阵、随机斜率模型
+    模型的比较使用: anova或LRT
+
+5.时间序列分析（ARIMA）
+(1) ts():时间序列对象
+(2) 平稳性建议啊: ADF，KPSS
+(3) ACF:自相关函数，PACF: 偏自相关函数
+(4) 自动定价函数: 
+
+6.生存分析
+(1) 生存对象函数: surv(time, event)
+(2) kaplan-meier估计：survfit
+(3) log-rank检验: survdiff
+(4) Cox比例风险模型: coxph
+(5) 比例风险假设检验: cox.zph
