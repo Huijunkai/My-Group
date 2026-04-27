@@ -11,5 +11,6 @@
             "envManager": "ms-python.python:system",
             "packageManager": "ms-python.python:pip"
         }
-    ]
+    ],
+    "git.ignoreLimitWarning": true
 }
