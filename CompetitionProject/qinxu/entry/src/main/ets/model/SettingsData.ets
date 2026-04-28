@@ -161,7 +161,8 @@ export class CourseItem {
   room: string = ''; // 教室号
   credit: number = 0; // 学分
   note: string = ''; // 备注
-  
+  semester: string = ''; // 学期
+
   constructor(
     period: number, 
     dayOfWeek: number, 
@@ -170,6 +171,7 @@ export class CourseItem {
     teacher: string, 
     weeks: number[] = [], 
     color: string | Resource = '',
+    semester: string = '',
     id?: string,
     type: string = '专业课',
     startTime: string = '',
@@ -187,6 +189,7 @@ export class CourseItem {
     this.teacher = teacher;
     this.weeks = weeks;
     this.color = color || this.generateColor(name);
+    this.semester = semester;
     this.type = type;
     this.startTime = startTime;
     this.endTime = endTime;
@@ -336,6 +339,7 @@ export class CourseItem {
       this.teacher,
       [...this.weeks],
       this.color,
+      this.semester,
       this.id
     );
   }
