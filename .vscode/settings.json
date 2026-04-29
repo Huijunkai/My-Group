@@ -1,4 +1,5 @@
 {
+    "github.copilot.git.commitMessageLanguage": "zh-CN",
     "python-envs.pythonProjects": [
         {
             "path": "Data-collection-and-preprocessing/NO3-work",
