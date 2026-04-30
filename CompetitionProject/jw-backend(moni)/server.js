@@ -7,7 +7,7 @@ const { login } = require('./src/api/auth');
 const { getStudentInfo, getTimetable, getGrades, getExamSchedule, getSemesterPlan, getStudyProgress } = require('./src/api/student');
 const { getAnnouncements, getAnnouncementDetail } = require('./src/api/announcement');
 const { getCampuses, getBuildings, queryEmptyRooms, queryRoomSchedule } = require('./src/api/emptyroom');
-const { scanWaterQrcode, initWaterDevice, parseScanUrl, bindWaterAccount, getWaterBalance } = require('./src/api/water');
+
 const { getElectricity, saveElectricityReminderSettings, getElectricityReminderSettings } = require('./src/api/electricity');
 const xyyxt = require('./src/xyyxt');
 const pushService = require('./src/services/pushService');
@@ -564,131 +564,6 @@ app.get('/api/announcements/detail', async (req, res) => {
         res.status(500).json({
             success: false,
             message: '获取公告详情失败: ' + error.message
-        });
-    }
-});
-
-app.post('/api/water/scan', async (req, res) => {
-    const { scanUrl } = req.body;
-
-    if (!scanUrl) {
-        return res.status(400).json({ success: false, message: '请提供扫描链接' });
-    }
-
-    try {
-        console.log(`打水系统: 扫码请求 - ${scanUrl.substring(0, 80)}...`);
-        const result = await bindWaterAccount(scanUrl);
-        
-        if (result.success) {
-            return res.json({
-                success: true,
-                message: '绑定成功',
-                data: result.data
-            });
-        } else {
-            return res.status(400).json({
-                success: false,
-                message: result.message
-            });
-        }
-    } catch (error) {
-        console.error('打水系统扫码失败:', error);
-        res.status(500).json({
-            success: false,
-            message: '扫码失败: ' + error.message
-        });
-    }
-});
-
-app.post('/api/water/init', async (req, res) => {
-    const { openid, deviceid, app } = req.body;
-
-    if (!openid || !deviceid) {
-        return res.status(400).json({ success: false, message: '请提供 openid 和 deviceid' });
-    }
-
-    try {
-        console.log(`打水系统: 初始化设备 ${deviceid}`);
-        const result = await initWaterDevice(openid, deviceid, app || 'WECHAT');
-        
-        if (result.success) {
-            return res.json({
-                success: true,
-                message: '设备初始化成功',
-                data: result.data
-            });
-        } else {
-            return res.status(400).json({
-                success: false,
-                message: result.message
-            });
-        }
-    } catch (error) {
-        console.error('打水系统初始化失败:', error);
-        res.status(500).json({
-            success: false,
-            message: '初始化失败: ' + error.message
-        });
-    }
-});
-
-app.post('/api/water/parse', async (req, res) => {
-    const { scanUrl } = req.body;
-
-    if (!scanUrl) {
-        return res.status(400).json({ success: false, message: '请提供扫描链接' });
-    }
-
-    try {
-        const result = parseScanUrl(scanUrl);
-        
-        if (result.success) {
-            return res.json({
-                success: true,
-                data: result.data
-            });
-        } else {
-            return res.status(400).json({
-                success: false,
-                message: result.message
-            });
-        }
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: '解析失败: ' + error.message
-        });
-    }
-});
-
-app.post('/api/water/balance', async (req, res) => {
-    const { openid, saler, app } = req.body;
-
-    if (!openid) {
-        return res.status(400).json({ success: false, message: '请提供 openid' });
-    }
-
-    try {
-        console.log(`打水系统: 获取余额 - openid: ${openid}`);
-        const result = await getWaterBalance(openid, saler || '', app || 'WECHAT');
-        
-        if (result.success) {
-            return res.json({
-                success: true,
-                message: '获取余额成功',
-                data: result.data
-            });
-        } else {
-            return res.status(400).json({
-                success: false,
-                message: result.message
-            });
-        }
-    } catch (error) {
-        console.error('打水系统获取余额失败:', error);
-        res.status(500).json({
-            success: false,
-            message: '获取余额失败: ' + error.message
         });
     }
 });
