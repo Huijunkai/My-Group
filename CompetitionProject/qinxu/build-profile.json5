@@ -1,0 +1,118 @@
+{
+  "app": {
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "debug",
+        "compatibleSdkVersion": "6.1.0(23)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        },
+        "targetSdkVersion": "6.1.0(23)"
+      },
+      {
+        "name": "debug",
+        "signingConfig": "debug",
+        "compileSdkVersion": "6.0.2(22)",
+        "targetSdkVersion": "6.0.2(22)",
+        "compatibleSdkVersion": "6.0.2(22)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      },
+      {
+        "name": "release",
+        "signingConfig": "release",
+        "compileSdkVersion": "6.0.2(22)",
+        "targetSdkVersion": "6.0.2(22)",
+        "compatibleSdkVersion": "6.0.2(22)",
+        "runtimeOS": "HarmonyOS"
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "default"
+      },
+      {
+        "name": "debug"
+      },
+      {
+        "name": "release"
+      }
+    ],
+    "signingConfigs": [
+      {
+        "name": "debug",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "F:/My-HarmonyOS/HarmonyOS-APP/qinxu/qinxu.cer",
+          "keyAlias": "yiqi",
+          "keyPassword": "0000001A9CE346249299626CF0F9E10CD719B2BB576EC2E333EB9CADC96E5A7D889DDBA69A6B64F4831D",
+          "profile": "F:/My-HarmonyOS/HarmonyOS-APP/qinxu/qinxuDebug.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "F:/My-HarmonyOS/HarmonyOS-APP/qinxu/qinxu.p12",
+          "storePassword": "0000001A69AA2CDA4858E2C3EA0696961ED8E09F65FA0AF3C276C4B17D4BF6A0469E61764FCC65ACA590"
+        }
+      },
+      {
+        "name": "release",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:/Users/yelan/.ohos/config/release_qinxu_79O6_eH3qLeGNCNqEs5kr5_vqMeYyWpS1Fri1RzwzWA=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B409FC24FAD480DAF7CAA836B857D6E1568BA83ECA7B456F67696E582CA0D726F856B834FBA1340",
+          "profile": "C:/Users/yelan/.ohos/config/release_qinxu_79O6_eH3qLeGNCNqEs5kr5_vqMeYyWpS1Fri1RzwzWA=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:/Users/yelan/.ohos/config/release_qinxu_79O6_eH3qLeGNCNqEs5kr5_vqMeYyWpS1Fri1RzwzWA=.p12",
+          "storePassword": "0000001B0BBE8499AD6AAB45C1F0C5B8A4D69FD0678286E58C98071A44FC02F63F2F51B30A24BC78C9199C"
+        }
+      }
+    ],
+    "capabilities": [
+      {
+        "bundleName": "com.example.qinxu",
+        "config": [
+          {
+            "capability": "com.huawei.service.push.base_service",
+            "name": "Push Kit"
+          },
+          {
+            "capability": "com.huawei.service.device_security.device_verify",
+            "name": "Device status detection"
+          },
+          {
+            "capability": "com.huawei.service.mapkit",
+            "name": "Map Kit"
+          },
+          {
+            "capability": "com.huawei.service.device_security.safety_detect",
+            "name": "Safety Detect"
+          }
+        ]
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "debug",
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}

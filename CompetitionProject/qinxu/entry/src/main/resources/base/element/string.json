@@ -1,0 +1,64 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "青序"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "青序主界面"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "青序"
+    },
+    {
+      "name": "internet_permission_reason",
+      "value": "需要网络权限以获取在线数据"
+    },
+    {
+      "name": "accelerometer_permission_reason",
+      "value": "需要访问加速度传感器以实现摇一摇功能"
+    },
+    {
+      "name": "location_permission_reason",
+      "value": "需要定位权限以在地图上显示您的位置"
+    },
+    {
+      "name": "campus_map_title",
+      "value": "校园地图"
+    },
+    {
+      "name": "search_placeholder",
+      "value": "搜索校园地点..."
+    },
+    {
+      "name": "navigate_to",
+      "value": "导航前往"
+    },
+    {
+      "name": "facilities",
+      "value": "设施"
+    },
+    {
+      "name": "location_list",
+      "value": "校园地点列表"
+    },
+    {
+      "name": "map_loading",
+      "value": "地图加载中..."
+    },
+    {
+      "name": "reminder_permission_reason",
+      "value": "需要提醒权限以便在课程开始前发送通知提醒"
+    },
+    {
+      "name": "camera_permission_reason",
+      "value": "需要相机权限以扫描二维码绑定设备"
+    },
+    {
+      "name": "gesture_permission_reason",
+      "value": "需要手势识别权限以实现智感握姿功能"
+    }
+  ]
+}
