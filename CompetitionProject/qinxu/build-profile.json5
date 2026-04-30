@@ -52,13 +52,13 @@
         "name": "debug",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "F:/My-HarmonyOS/HarmonyOS-APP/qinxu/qinxu.cer",
+          "storeFile": "F:/My-Group/CompetitionProject/qinxu/qinxu.p12",
+          "storePassword": "0000001AFAEDC4F4397C69B9CE3146DB850FBEFE380BBE631B3276270AA04EC04156A9E881720F51EB8A",
           "keyAlias": "yiqi",
-          "keyPassword": "0000001A9CE346249299626CF0F9E10CD719B2BB576EC2E333EB9CADC96E5A7D889DDBA69A6B64F4831D",
-          "profile": "F:/My-HarmonyOS/HarmonyOS-APP/qinxu/qinxuDebug.p7b",
+          "keyPassword": "0000001A667D45527C54DE33C911FD9ED218FA99FC3969941AE4AC694B1E77DCC78D8A2861BB7A56FA32",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "F:/My-HarmonyOS/HarmonyOS-APP/qinxu/qinxu.p12",
-          "storePassword": "0000001A69AA2CDA4858E2C3EA0696961ED8E09F65FA0AF3C276C4B17D4BF6A0469E61764FCC65ACA590"
+          "profile": "F:/My-Group/CompetitionProject/qinxu/qinxuDebug.p7b",
+          "certpath": "F:/My-Group/CompetitionProject/qinxu/qinxu.cer"
         }
       },
       {
