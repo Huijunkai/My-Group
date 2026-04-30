@@ -37,7 +37,7 @@ console.log('[Mock Data] 正在从 CSV 文件加载初始化数据...');
 
 const mockStudents = readCsvAsJson('students.csv');
 const mockTimetable = readCsvAsJson('courses.csv');
-const mockExams = readCsvAsJson('exams.csv');
+const mockExams = readCsvAsJson('exam.csv');
 const mockProgress = readCsvAsJson('progress.csv');
 const rawGrades = readCsvAsJson('grades.csv');
 const mockGrades = {};
