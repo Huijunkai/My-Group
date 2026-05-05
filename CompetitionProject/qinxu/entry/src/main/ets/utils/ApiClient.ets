@@ -14,7 +14,7 @@ import { DataStore, StudentInfo, Grade, Exam, Plan, Progress, ScheduleData } fro
 import { CryptoUtils, StudentInfoData, CourseData, GradeData, ExamData, PlanData, ProgressData } from './CryptoUtils';
 
 /** API基础URL */
-const BASE_URL: string = 'http://124.70.92.199:3000';
+const BASE_URL: string = 'http://124.70.92.199:3001';
 
 /**
  * 同步数据接口

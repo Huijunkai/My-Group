@@ -191,7 +191,7 @@ export interface XyyxtElectricityReminderResponse {
 
 export class XyyxtApiClient {
   private static instance: XyyxtApiClient;
-  private baseUrl: string = 'http://124.70.92.199:3000/api/xyyxt';
+  private baseUrl: string = 'http://124.70.92.199:3001/api/xyyxt';
   private accessToken: string = '';
   private username: string = '';
 
