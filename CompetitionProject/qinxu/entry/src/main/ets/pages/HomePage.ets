@@ -190,10 +190,12 @@ struct HomePage {
       this.dataLoaded = true;
     }
     this.startRealTimeUpdates();
-    this.requestLocationPermissionIfNeeded();
-    this.loadWeatherData();
+    setTimeout(() => {
+      this.requestLocationPermissionIfNeeded();
+      this.loadWeatherData();
+      this.loadAnnouncements();
+    }, 500);
     this.startWeatherAutoScroll();
-    this.loadAnnouncements();
     this.startAnnouncementAutoScroll();
     this.listenForPushMessages();
   }
@@ -477,7 +479,9 @@ struct HomePage {
     } catch (error) {
       console.error('HomePage: Failed to load settings:', error);
     }
-    this.loadData();
+    setTimeout(() => {
+      this.loadData();
+    }, 100);
   }
 
   private async loadData(): Promise<void> {

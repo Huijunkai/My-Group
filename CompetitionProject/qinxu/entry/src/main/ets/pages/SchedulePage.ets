@@ -166,13 +166,14 @@ struct SchedulePage {
   // 获取分组后的时间槽（每两节课一组）
   private groupedTimeSlots: TimeSlotData[][] = this.getGroupedTimeSlots();
 
-  async aboutToAppear() {
+  aboutToAppear() {
     this.studentId = AppStorage.Get('studentId') as string || '';
-    await this.loadSettings();
-    await this.loadCachedData();
+    this.loadSettings().then(() => {
+      this.loadCachedData();
+    });
     this.silentRefresh();
     this.updateLunarDate();
-    await this.loadHolidays();
+    this.loadHolidays();
   }
 
   onSettingsChanged(): void {
@@ -235,83 +236,71 @@ struct SchedulePage {
     console.log('SchedulePage: Settings updated, totalWeeks:', this.settings.totalWeeks);
   }
 
-  async onPageShow() {
+  onPageShow() {
     console.log('SchedulePage: onPageShow called');
 
-    // 页面显示时重新加载设置（从设置页面返回时）
-    // 保存旧设置的关键值用于对比
     const oldStartDate = this.settings.semesterStartDate;
     const oldTotalWeeks = this.settings.totalWeeks;
     const oldCurrentWeek = this.currentWeek;
 
     console.log('SchedulePage: Old settings - startDate:', oldStartDate, 'totalWeeks:', oldTotalWeeks, 'currentWeek:', oldCurrentWeek);
 
-    // 重新加载设置
-    await this.loadSettings();
+    this.loadSettings().then(() => {
+      console.log('SchedulePage: New settings - startDate:', this.settings.semesterStartDate, 'totalWeeks:', this.settings.totalWeeks);
 
-    console.log('SchedulePage: New settings - startDate:', this.settings.semesterStartDate, 'totalWeeks:', this.settings.totalWeeks);
+      const settingsChangedFlag = AppStorage.Get('scheduleSettingsChanged') as boolean;
+      console.log('SchedulePage: settingsChangedFlag:', settingsChangedFlag);
 
-    // 检查 AppStorage 中是否有设置变更标记
-    const settingsChangedFlag = AppStorage.Get('scheduleSettingsChanged') as boolean;
-    console.log('SchedulePage: settingsChangedFlag:', settingsChangedFlag);
-
-    if (settingsChangedFlag) {
-      // 清除标记
-      AppStorage.SetOrCreate('scheduleSettingsChanged', false);
-    }
-
-    // 检查各项设置是否发生变化
-    const startDateChanged = oldStartDate !== this.settings.semesterStartDate;
-    const totalWeeksChanged = oldTotalWeeks !== this.settings.totalWeeks;
-
-    console.log('SchedulePage: Changes detected - startDate:', startDateChanged, 'totalWeeks:', totalWeeksChanged);
-
-    // 计算新的当前周数
-    const newCurrentWeek = this.settings.getCurrentWeek();
-    const weekChanged = newCurrentWeek !== oldCurrentWeek;
-
-    console.log('SchedulePage: Week calculation - old:', oldCurrentWeek, 'new:', newCurrentWeek, 'changed:', weekChanged);
-
-    const settingsChanged = settingsChangedFlag || startDateChanged || totalWeeksChanged || weekChanged;
-
-    console.log('SchedulePage: Final settingsChanged:', settingsChanged);
-
-    // 如果设置改变，立即刷新
-    if (settingsChanged) {
-      console.log('SchedulePage: Refreshing UI due to settings change');
-
-      // 确保当前周数在有效范围内
-      if (this.currentWeek > this.settings.totalWeeks) {
-        this.currentWeek = 1;
-      } else if (startDateChanged || weekChanged) {
-        this.currentWeek = newCurrentWeek;
-      }
-
-      console.log('SchedulePage: Updated currentWeek to:', this.currentWeek);
-
-      // 强制刷新日期显示 - 通过创建新对象触发状态更新
-      const newSettings = new SettingsData();
-      newSettings.semesterName = this.settings.semesterName;
-      newSettings.semesterStartDate = this.settings.semesterStartDate;
-      newSettings.totalWeeks = this.settings.totalWeeks;
-      newSettings.maxPeriods = this.settings.maxPeriods;
-      newSettings.showWeekend = this.settings.showWeekend;
-      newSettings.showCurrentWeek = this.settings.showCurrentWeek;
-      this.settings = newSettings;
-
-      this.currentDate = new Date();
-      this.updateLunarDate();
-
-      // 更新总周数 key 以强制 Swiper 重新渲染
-      this.totalWeeksKey = this.settings.totalWeeks;
-
-      // 显示提示
       if (settingsChangedFlag) {
-        promptAction.showToast({ message: '课表设置已更新' });
+        AppStorage.SetOrCreate('scheduleSettingsChanged', false);
       }
-    } else {
-      console.log('SchedulePage: No settings change detected, skipping refresh');
-    }
+
+      const startDateChanged = oldStartDate !== this.settings.semesterStartDate;
+      const totalWeeksChanged = oldTotalWeeks !== this.settings.totalWeeks;
+
+      console.log('SchedulePage: Changes detected - startDate:', startDateChanged, 'totalWeeks:', totalWeeksChanged);
+
+      const newCurrentWeek = this.settings.getCurrentWeek();
+      const weekChanged = newCurrentWeek !== oldCurrentWeek;
+
+      console.log('SchedulePage: Week calculation - old:', oldCurrentWeek, 'new:', newCurrentWeek, 'changed:', weekChanged);
+
+      const settingsChanged = settingsChangedFlag || startDateChanged || totalWeeksChanged || weekChanged;
+
+      console.log('SchedulePage: Final settingsChanged:', settingsChanged);
+
+      if (settingsChanged) {
+        console.log('SchedulePage: Refreshing UI due to settings change');
+
+        if (this.currentWeek > this.settings.totalWeeks) {
+          this.currentWeek = 1;
+        } else if (startDateChanged || weekChanged) {
+          this.currentWeek = newCurrentWeek;
+        }
+
+        console.log('SchedulePage: Updated currentWeek to:', this.currentWeek);
+
+        const newSettings = new SettingsData();
+        newSettings.semesterName = this.settings.semesterName;
+        newSettings.semesterStartDate = this.settings.semesterStartDate;
+        newSettings.totalWeeks = this.settings.totalWeeks;
+        newSettings.maxPeriods = this.settings.maxPeriods;
+        newSettings.showWeekend = this.settings.showWeekend;
+        newSettings.showCurrentWeek = this.settings.showCurrentWeek;
+        this.settings = newSettings;
+
+        this.currentDate = new Date();
+        this.updateLunarDate();
+
+        this.totalWeeksKey = this.settings.totalWeeks;
+
+        if (settingsChangedFlag) {
+          promptAction.showToast({ message: '课表设置已更新' });
+        }
+      } else {
+        console.log('SchedulePage: No settings change detected, skipping refresh');
+      }
+    });
   }
 
   private async loadSettings(): Promise<void> {

@@ -121,7 +121,10 @@ export class WeatherService {
     let locationId = '101300101';
 
     try {
-      const location = await geoLocationManager.getCurrentLocation();
+      const location = await Promise.race([
+        geoLocationManager.getCurrentLocation(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
+      ]);
       if (location) {
         lat = location.latitude;
         lon = location.longitude;
@@ -205,10 +208,15 @@ export class WeatherService {
 
   private async fetchWeatherFromApi(lat: number, lon: number, locationName: string, locationId: string): Promise<WeatherData | null> {
     try {
-      const nowData = await this.fetchCurrentWeather(lat, lon, locationName);
-      const minutelyData = await this.fetchMinutelyWeather(lat, lon);
-      const tempRange = await this.fetchTemperatureRange(lat, lon);
-      
+      const results = await Promise.all([
+        this.fetchCurrentWeather(lat, lon, locationName),
+        this.fetchMinutelyWeather(lat, lon),
+        this.fetchTemperatureRange(lat, lon)
+      ]);
+      const nowData = results[0];
+      const minutelyData = results[1];
+      const tempRange = results[2];
+
       if (nowData) {
         nowData.minutely = minutelyData;
         if (tempRange) {
