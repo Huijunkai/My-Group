@@ -1,8 +1,3 @@
-/**
- * LocalUnti 模块单元测试
- * 测试内容：数据类型、数组操作、JSON操作、边界条件、数据验证
- * 注意：存储相关测试需要在仪器化测试(ohosTest)中运行
- */
 import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';
 
 export default function localUnitTest() {

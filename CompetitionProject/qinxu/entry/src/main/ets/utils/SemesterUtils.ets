@@ -207,14 +207,11 @@ export function getCurrentSemester(): SemesterInfo {
   let startYear: number;
   let semesterNum: number;
 
-  if (month >= 2 && month <= 7) {
+  if (month >= 2 && month <= 8) {
     startYear = currentYear - 1;
     semesterNum = 2;
-  } else if (month >= 8 && month <= 12) {
-    startYear = currentYear;
-    semesterNum = 1;
   } else {
-    startYear = currentYear - 1;
+    startYear = currentYear;
     semesterNum = 1;
   }
 

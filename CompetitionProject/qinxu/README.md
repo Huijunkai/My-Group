@@ -210,7 +210,26 @@
 
 ---
 
-### 9. 空教室查询
+### 9. 校园地图
+
+校园地理信息系统，帮助学生熟悉校园环境。
+
+#### 功能特性
+
+- **校园地图浏览**：交互式校园地图
+- **建筑物定位**：快速定位校园建筑
+- **导航功能**：从当前位置导航到目标地点
+- **场所分类**：按功能分类展示校园场所
+
+#### 技术亮点
+
+- 集成华为 Map Kit 地图服务
+- 定位服务集成
+- 校园设施图标分类（行政、餐饮、宿舍、图书馆、医疗、购物、体育、教学等）
+
+---
+
+### 10. 空教室查询
 
 实时查询空闲教室信息，方便学生自习。
 
@@ -257,6 +276,19 @@
 - **提醒开关**：开启/关闭电费余额提醒
 - **余额阈值设置**：自定义低余额提醒阈值
 - **宿舍信息绑定**：关联宿舍房间信息
+
+---
+
+### 13. 取水服务
+
+校园取水设备扫码服务。
+
+#### 功能特性
+
+- **扫码取水**：扫描设备二维码取水
+- **设备绑定**：绑定常用取水设备
+- **冷热水开关**：选择出水温度
+- **余额查询**：查看账户余额
 
 ---
 
@@ -369,9 +401,11 @@ qinxu/
 │   │   │   │   ├── AboutPage.ets          # 关于页面
 │   │   │   │   ├── CommonPage.ets         # 通用设置页面
 │   │   │   │   ├── AIStudyPartnerPage.ets # AI学习伙伴页面
+│   │   │   │   ├── CampusMapPage.ets      # 校园地图页面
 │   │   │   │   ├── CourseReminderSettingsPage.ets # 课程提醒设置页面
 │   │   │   │   ├── ElectricityReminderSettingsPage.ets # 电费提醒设置页面
 │   │   │   │   ├── EmptyRoomPage.ets      # 空教室查询页面
+│   │   │   │   ├── FetchWater.ets         # 取水页面
 │   │   │   │   └── PushSettingsPage.ets   # 推送设置页面
 │   │   │   │
 │   │   │   ├── services/                  # 业务服务
@@ -406,7 +440,7 @@ qinxu/
 │   │       │   │   ├── color.json         # 颜色资源定义
 │   │       │   │   ├── float.json         # 浮点数资源
 │   │       │   │   └── string.json        # 字符串资源
-│   │       │   ├── media/                 # 图标资源(62个)
+│   │       │   ├── media/                 # 图标资源(68个)
 │   │       │   │   ├── R_C.PNG            # 应用图标
 │   │       │   │   ├── house.svg          # 首页图标(未选中)
 │   │       │   │   ├── house_fill.svg     # 首页图标(选中)
@@ -414,6 +448,7 @@ qinxu/
 │   │       │   │   ├── calendar_fill.svg  # 日历图标(选中)
 │   │       │   │   ├── person_2.svg       # 个人图标(未选中)
 │   │       │   │   ├── person_2_fill.svg  # 个人图标(选中)
+│   │       │   │   ├── ic_*.svg           # 校园设施分类图标
 │   │       │   │   └── ...                # 其他功能图标
 │   │       │   └── profile/
 │   │       │       ├── main_pages.json    # 页面路由配置
@@ -450,14 +485,14 @@ qinxu/
 
 | 类别    | 数量   | 说明            |
 | ----- | ---- | ------------- |
-| 页面文件  | 22 个 | 应用各功能页面       |
+| 页面文件  | 24 个 | 应用各功能页面       |
 | 组件文件  | 11 个 | 可复用 UI 组件     |
 | 工具类   | 12 个 | 通用工具函数        |
 | 服务类   | 5 个  | 业务逻辑封装        |
 | 类型定义  | 3 个  | TypeScript 类型 |
 | 自定义钩子 | 4 个  | 状态管理钩子        |
 | 常量定义  | 4 个  | 应用常量配置        |
-| 图标资源  | 62 个 | SVG/PNG 图标    |
+| 图标资源  | 68 个 | SVG/PNG 图标    |
 
 ---
 
@@ -493,6 +528,7 @@ Level 1: MainPage (底部导航容器)
     │       ├── Level 3: CreditProgressPage (学分进度)
     │       ├── Level 3: ExamPage (考试安排)
     │       ├── Level 3: AIStudyPartnerPage (AI学习伙伴)
+    │       ├── Level 3: CampusMapPage (校园地图)
     │       └── Level 3: EmptyRoomPage (空教室查询)
     │
     ├── Level 2: SchedulePage (课表)
@@ -539,6 +575,7 @@ Level 1: MainPage (底部导航容器)
 | 服务 | 用途 |
 |------|------|
 | Push Kit | 推送通知服务 |
+| Map Kit | 校园地图服务 |
 | Device Status Detection | 设备状态检测 |
 | Safety Detect | 安全检测 |
 
@@ -615,7 +652,10 @@ Level 1: MainPage (底部导航容器)
 | --------------------------------- | --------------- |
 | ohos.permission.INTERNET          | 网络请求，获取教务数据     |
 | ohos.permission.ACCELEROMETER     | 加速度传感器          |
+| ohos.permission.APPROXIMATELY_LOCATION | 大致位置信息       |
+| ohos.permission.LOCATION          | 精确位置信息（校园地图导航）  |
 | ohos.permission.PUBLISH_AGENT_REMINDER | 后台代理提醒（课程/考试提醒） |
+| ohos.permission.CAMERA            | 相机（扫码取水）        |
 | ohos.permission.DETECT_GESTURE    | 手势检测            |
 
 ---
@@ -634,6 +674,7 @@ MainPage (主页 - 沉静光感底部导航)
     │       ├── CreditProgressPage (学分进度)
     │       ├── ExamPage (考试安排)
     │       ├── AIStudyPartnerPage (AI学习伙伴)
+    │       ├── CampusMapPage (校园地图)
     │       └── EmptyRoomPage (空教室查询)
     │
     ├── SchedulePage (课表)
@@ -712,7 +753,8 @@ hvigorw clean
 - 实现个人中心功能
 - 实现沉静光感底部导航栏（对齐鸿蒙6.1设计语言）
 - 实现电费提醒设置
-- 集成华为 Push Kit / Safety Detect
+- 实现取水服务
+- 集成华为 Push Kit / Map Kit / Safety Detect
 
 ---
 

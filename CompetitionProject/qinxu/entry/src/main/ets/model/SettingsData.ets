@@ -161,8 +161,7 @@ export class CourseItem {
   room: string = ''; // 教室号
   credit: number = 0; // 学分
   note: string = ''; // 备注
-  semester: string = ''; // 学期
-
+  
   constructor(
     period: number, 
     dayOfWeek: number, 
@@ -171,7 +170,6 @@ export class CourseItem {
     teacher: string, 
     weeks: number[] = [], 
     color: string | Resource = '',
-    semester: string = '',
     id?: string,
     type: string = '专业课',
     startTime: string = '',
@@ -189,7 +187,6 @@ export class CourseItem {
     this.teacher = teacher;
     this.weeks = weeks;
     this.color = color || this.generateColor(name);
-    this.semester = semester;
     this.type = type;
     this.startTime = startTime;
     this.endTime = endTime;
@@ -205,7 +202,7 @@ export class CourseItem {
    * @returns 唯一ID字符串
    */
   private generateId(): string {
-    return `course_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `course_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   }
   
   /**
@@ -223,12 +220,12 @@ export class CourseItem {
       '#f72585', // 粉红色
       '#4cc9f0', // 浅蓝色
       '#4895ef', // 中蓝色
-      '#4cc9f0', // 浅蓝色
       '#43aa8b', // 深绿色
       '#90be6d', // 浅绿色
       '#f9c74f', // 黄色
       '#f8961e', // 橙色
-      '#f94144'  // 红色
+      '#f94144', // 红色
+      '#577590'  // 灰蓝色
     ];
     let hash = 0;
     for (let i = 0; i < courseName.length; i++) {
@@ -339,8 +336,14 @@ export class CourseItem {
       this.teacher,
       [...this.weeks],
       this.color,
-      this.semester,
-      this.id
+      this.id,
+      this.type,
+      this.startTime,
+      this.endTime,
+      this.building,
+      this.room,
+      this.credit,
+      this.note
     );
   }
 }

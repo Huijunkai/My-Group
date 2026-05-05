@@ -373,11 +373,11 @@ struct HomePage {
   private async requestLocationPermissionIfNeeded(): Promise<void> {
     const KEY_PERMISSIONS_REQUESTED = 'permissionsRequested';
     const PREFERENCES_NAME = 'app_preferences';
-
+    
     try {
       const dataPreferences = await preferences.getPreferences(getContext(), PREFERENCES_NAME);
       const alreadyRequested = await dataPreferences.get(KEY_PERMISSIONS_REQUESTED, false);
-
+      
       if (alreadyRequested) {
         console.info('HomePage: 权限已请求过，跳过');
         return;
@@ -385,24 +385,26 @@ struct HomePage {
 
       const context = getContext() as common.UIAbilityContext;
       const atManager = abilityAccessCtrl.createAtManager();
-
+      
       const permissionsToRequest: Permissions[] = [
+        'ohos.permission.APPROXIMATELY_LOCATION',
+        'ohos.permission.LOCATION',
         'ohos.permission.PUBLISH_AGENT_REMINDER'
       ];
-
+      
       const permissionsNeeded: Permissions[] = [];
-
+      
       for (const permission of permissionsToRequest) {
         const status = await atManager.checkAccessToken(
           context.applicationInfo.accessTokenId,
           permission
         );
-
+        
         if (status !== abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED) {
           permissionsNeeded.push(permission);
         }
       }
-
+      
       if (permissionsNeeded.length > 0) {
         try {
           await atManager.requestPermissionsFromUser(context, permissionsNeeded);
@@ -902,7 +904,7 @@ struct HomePage {
             .width(4)
             .height(1)
         }
-      })
+      }, (index: number) => `divider_${index}`)
     }
     .width('100%')
     .justifyContent(FlexAlign.Center)
@@ -925,9 +927,8 @@ struct HomePage {
           this.buildHeader()
           this.buildWeatherCard()
           this.buildAnnouncementCard()
-          this.buildTodayScheduleCard()
+          this.buildScheduleCardsRow()
           DormitoryCard()
-          this.buildTomorrowScheduleCard()
           this.buildQuickActionsCard()
         }
         .width('100%')
@@ -1240,7 +1241,7 @@ struct HomePage {
             .onClick(() => {
               this.openAnnouncementDetail(announcement);
             })
-          })
+          }, (announcement: Announcement, index: number) => `ann_list_${index}`)
           
           Row() {
             if (this.currentPage > 1) {
@@ -1305,7 +1306,7 @@ struct HomePage {
               duration: 400,
               curve: Curve.EaseInOut
             })
-          })
+          }, (announcement: Announcement, index: number) => `ann_scroll_${index}`)
         }
         .width('100%')
         .height(36)
@@ -1421,7 +1422,7 @@ struct HomePage {
                     .onClick(() => {
                       this.openAttachment(attachment.url);
                     })
-                  })
+                  }, (attachment: AnnouncementAttachment) => attachment.name)
                 }
               }
               .width('100%')
@@ -1553,6 +1554,250 @@ struct HomePage {
   }
 
   @Builder
+  buildScheduleCardsRow() {
+    Row({ space: 12 }) {
+      Column() {
+        this.buildTodayScheduleCardCompact()
+      }
+      .layoutWeight(1)
+
+      Column() {
+        this.buildTomorrowScheduleCardCompact()
+      }
+      .layoutWeight(1)
+    }
+    .width('100%')
+    .margin({ top: 8, bottom: 8 })
+  }
+
+  @Builder
+  buildTodayScheduleCardCompact() {
+    Column({ space: 6 }) {
+      Text('今日课程')
+        .fontSize(15)
+        .fontWeight(FontWeight.Bold)
+        .fontColor($r('app.color.text_primary'))
+        .width('100%')
+
+      if (this.todayCourses.length === 0) {
+        Column({ space: 4 }) {
+          Image($r('app.media.book_pages_fill_1'))
+            .width(32)
+            .height(32)
+            .fillColor($r('app.color.text_tertiary'))
+
+          Text('今日无课')
+            .fontSize(12)
+            .fontColor($r('app.color.text_secondary'))
+
+          if (this.tomorrowCourses.length > 0) {
+            Text(`明日有 ${this.tomorrowCourses.length} 节课`)
+              .fontSize(11)
+              .fontColor($r('app.color.text_tertiary'))
+              .margin({ top: 4 })
+          }
+        }
+        .width('100%')
+        .height(140)
+        .justifyContent(FlexAlign.Center)
+      } else if (this.getUpcomingCourses().length === 0) {
+        Column({ space: 4 }) {
+          Image($r('app.media.book_pages_fill_1'))
+            .width(32)
+            .height(32)
+            .fillColor($r('app.color.text_tertiary'))
+
+          Text('今日课程已全部结束')
+            .fontSize(12)
+            .fontColor($r('app.color.text_secondary'))
+
+          Text(`${this.todayCourses.length} 节课已完成 ✓`)
+            .fontSize(11)
+            .fontColor('#52c41a')
+            .margin({ top: 4 })
+        }
+        .width('100%')
+        .height(140)
+        .justifyContent(FlexAlign.Center)
+      } else {
+        Scroll() {
+          Column({ space: 8 }) {
+            ForEach(this.getUpcomingCourses().slice(0, 3), (course: CourseInfo, index: number) => {
+              Column({ space: 4 }) {
+                Row() {
+                  Text(course.startTime)
+                    .fontSize(11)
+                    .fontColor($r('app.color.primary'))
+                    .fontWeight(FontWeight.Medium)
+
+                  Text(course.period)
+                    .fontSize(10)
+                    .fontColor($r('app.color.text_secondary'))
+                    .margin({ left: 6 })
+
+                  Blank()
+
+                  if (course.isCurrent) {
+                    Text('进行中')
+                      .fontSize(10)
+                      .fontColor('#FFFFFF')
+                      .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+                      .backgroundColor('#52c41a')
+                      .borderRadius(8)
+                  } else if (course.isEndingSoon) {
+                    Text('即将下课')
+                      .fontSize(10)
+                      .fontColor('#fa8c16')
+                      .fontWeight(FontWeight.Medium)
+                  } else if (!course.isEnded && course.isUpcomingSoon) {
+                    Text('即将开始')
+                      .fontSize(10)
+                      .fontColor($r('app.color.primary'))
+                      .fontWeight(FontWeight.Medium)
+                  }
+                }
+                .width('100%')
+
+                Text(course.name)
+                  .fontSize(13)
+                  .fontColor($r('app.color.text_primary'))
+                  .fontWeight(FontWeight.Medium)
+                  .width('100%')
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+                if (course.location) {
+                  Text(course.location)
+                    .fontSize(11)
+                    .fontColor($r('app.color.text_tertiary'))
+                    .width('100%')
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                }
+              }
+              .width('100%')
+              .padding(10)
+              .backgroundColor($r('app.color.background_tertiary'))
+              .borderRadius(8)
+            }, (course: CourseInfo, index: number) => `today_compact_${index}`)
+
+            if (this.getUpcomingCourses().length > 3) {
+              Text(`还有 ${this.getUpcomingCourses().length - 3} 节课...`)
+                .fontSize(11)
+                .fontColor($r('app.color.text_secondary'))
+                .width('100%')
+                .textAlign(TextAlign.Center)
+                .padding({ top: 4 })
+            }
+          }
+          .width('100%')
+        }
+        .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring)
+        .width('100%')
+        .height(140)
+      }
+    }
+    .width('100%')
+    .padding(14)
+    .backgroundColor($r('app.color.background_primary'))
+    .borderRadius(16)
+  }
+
+  @Builder
+  buildTomorrowScheduleCardCompact() {
+    Column({ space: 6 }) {
+      Text('明日课程')
+        .fontSize(15)
+        .fontWeight(FontWeight.Bold)
+        .fontColor($r('app.color.text_primary'))
+        .width('100%')
+
+      if (this.tomorrowCourses.length === 0) {
+        Column({ space: 4 }) {
+          Image($r('app.media.book_pages_fill_1'))
+            .width(32)
+            .height(32)
+            .fillColor($r('app.color.text_tertiary'))
+
+          Text('明日无课')
+            .fontSize(12)
+            .fontColor($r('app.color.text_secondary'))
+        }
+        .width('100%')
+        .padding({ top: 8, bottom: 8 })
+        .justifyContent(FlexAlign.Center)
+      } else {
+        Scroll() {
+          Column({ space: 8 }) {
+            ForEach(this.tomorrowCourses.slice(0, 3), (course: CourseInfo, index: number) => {
+              Column({ space: 4 }) {
+                Row() {
+                  Text(course.startTime)
+                    .fontSize(11)
+                    .fontColor($r('app.color.primary'))
+                    .fontWeight(FontWeight.Medium)
+
+                  Text(course.period)
+                    .fontSize(10)
+                    .fontColor($r('app.color.text_secondary'))
+                    .margin({ left: 6 })
+
+                  Blank()
+
+                  Text(`${course.period.replace(/[^0-9]/g, '').length > 2 ? '连堂' : ''}`)
+                    .fontSize(10)
+                    .fontColor($r('app.color.text_tertiary'))
+                }
+                .width('100%')
+
+                Text(course.name)
+                  .fontSize(13)
+                  .fontColor($r('app.color.text_primary'))
+                  .fontWeight(FontWeight.Medium)
+                  .width('100%')
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+                if (course.location) {
+                  Text(course.location)
+                    .fontSize(11)
+                    .fontColor($r('app.color.text_tertiary'))
+                    .width('100%')
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                }
+              }
+              .width('100%')
+              .padding(10)
+              .backgroundColor($r('app.color.background_tertiary'))
+              .borderRadius(8)
+            }, (course: CourseInfo, index: number) => `tomorrow_compact_${index}`)
+
+            if (this.tomorrowCourses.length > 3) {
+              Text(`共 ${this.tomorrowCourses.length} 节课`)
+                .fontSize(11)
+                .fontColor($r('app.color.text_secondary'))
+                .width('100%')
+                .textAlign(TextAlign.Center)
+                .padding({ top: 4 })
+            }
+          }
+          .width('100%')
+        }
+        .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring)
+        .width('100%')
+        .height(140)
+      }
+    }
+    .width('100%')
+    .padding(14)
+    .backgroundColor($r('app.color.background_primary'))
+    .borderRadius(16)
+  }
+
+  @Builder
   buildTodayScheduleCard() {
     Column({ space: 8 }) {
       Column() {
@@ -1609,7 +1854,7 @@ struct HomePage {
                 if (index < this.getUpcomingCourses().length - 1) {
                   this.buildDashedDivider()
                 }
-              })
+              }, (course: CourseInfo, index: number) => `upcoming_${index}`)
             }
             .width('100%')
           }
@@ -1669,7 +1914,7 @@ struct HomePage {
                 if (index < this.tomorrowCourses.length - 1) {
                   this.buildDashedDivider()
                 }
-              })
+              }, (course: CourseInfo, index: number) => `tomorrow_${index}`)
             }
             .width('100%')
           }
@@ -2033,8 +2278,6 @@ struct HomePage {
         this.buildActionItem('app.media.label', '空教室查询', () => {
           router.pushUrl({ url: 'pages/EmptyRoomPage' });
         })
-
-
 
         this.buildActionItem('app.media.message_on_message', 'AI学习伙伴', () => {
           router.pushUrl({ url: 'pages/AIStudyPartnerPage' });

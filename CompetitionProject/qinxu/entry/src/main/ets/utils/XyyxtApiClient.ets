@@ -191,7 +191,7 @@ export interface XyyxtElectricityReminderResponse {
 
 export class XyyxtApiClient {
   private static instance: XyyxtApiClient;
-  private baseUrl: string = 'http://124.70.92.199:3001/api/xyyxt';
+  private baseUrl: string = 'http://124.70.92.199:3000/api/xyyxt';
   private accessToken: string = '';
   private username: string = '';
 
@@ -409,7 +409,7 @@ export class XyyxtApiClient {
     try {
       const httpRequest = http.createHttp();
       const response = await httpRequest.request(
-        `http://124.70.92.199:3001/api/electricity/reminder/settings`,
+        `http://124.70.92.199:3000/api/electricity/reminder/settings`,
         {
           method: http.RequestMethod.POST,
           header: {
@@ -432,7 +432,7 @@ export class XyyxtApiClient {
     try {
       const httpRequest = http.createHttp();
       const response = await httpRequest.request(
-        `http://124.70.92.199:3001/api/electricity/reminder/settings?studentId=${encodeURIComponent(studentId)}`,
+        `http://124.70.92.199:3000/api/electricity/reminder/settings?studentId=${encodeURIComponent(studentId)}`,
         {
           method: http.RequestMethod.GET,
           header: {

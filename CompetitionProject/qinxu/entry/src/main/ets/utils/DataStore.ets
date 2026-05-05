@@ -286,12 +286,25 @@ export class DataStore {
       const settingsData: Partial<ExportSettings> = JSON.parse(settingsJson) as Partial<ExportSettings>;
 
       const settings = new SettingsData();
-      settings.semesterName = settingsData.semesterName || settings.semesterName;
-      settings.semesterStartDate = settingsData.semesterStartDate || settings.semesterStartDate;
-      settings.totalWeeks = settingsData.totalWeeks || settings.totalWeeks;
-      settings.maxPeriods = settingsData.maxPeriods || settings.maxPeriods;
-      settings.showWeekend = settingsData.showWeekend !== undefined ? settingsData.showWeekend : settings.showWeekend;
-      settings.showCurrentWeek = settingsData.showCurrentWeek !== undefined ? settingsData.showCurrentWeek : settings.showCurrentWeek;
+      
+      if (settingsData.semesterName !== undefined && settingsData.semesterName !== '') {
+        settings.semesterName = settingsData.semesterName;
+      }
+      if (settingsData.semesterStartDate !== undefined && settingsData.semesterStartDate !== '') {
+        settings.semesterStartDate = settingsData.semesterStartDate;
+      }
+      if (settingsData.totalWeeks !== undefined && settingsData.totalWeeks > 0) {
+        settings.totalWeeks = settingsData.totalWeeks;
+      }
+      if (settingsData.maxPeriods !== undefined && settingsData.maxPeriods > 0) {
+        settings.maxPeriods = settingsData.maxPeriods;
+      }
+      if (settingsData.showWeekend !== undefined) {
+        settings.showWeekend = settingsData.showWeekend;
+      }
+      if (settingsData.showCurrentWeek !== undefined) {
+        settings.showCurrentWeek = settingsData.showCurrentWeek;
+      }
 
       console.log('DataStore: loadSettings - loaded settings:', {
         semesterName: settings.semesterName,
