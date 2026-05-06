@@ -4,8 +4,8 @@ async function test() {
     console.log('开始测试拆分后的模块...');
     
     // 请替换为真实的学号和密码进行测试
-    const username = '23490329';
-    const password = '021219Hjk!';
+    const username = '20210001';
+    const password = '123456';
 
     const loginResult = await jw.login(username, password);
     console.log('登录结果:', loginResult.success ? '成功' : '失败');
