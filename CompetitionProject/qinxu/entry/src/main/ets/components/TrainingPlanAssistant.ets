@@ -177,7 +177,7 @@ export struct TrainingPlanAssistant {
    * @returns 唯一的聊天ID字符串
    */
   private generateChatId(): string {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
   }
 
   /**
@@ -545,14 +545,14 @@ export struct TrainingPlanAssistant {
               }
               .width('100%')
               .padding(12)
-              .backgroundColor(this.currentChatId === history.id ? 
+              .backgroundColor(this.currentChatId === history.id ?
                 $r('app.color.background_tertiary') : 'transparent')
               .borderRadius(8)
               .onClick(() => {
                 this.loadChat(history);
               })
             }
-          })
+          }, (history: ChatHistory) => history.id.toString())
         }
         .width('100%')
         .layoutWeight(1)
@@ -589,7 +589,7 @@ export struct TrainingPlanAssistant {
               .onClick(() => {
                 this.selectedModel = model;
               })
-          })
+          }, (model: AIModel) => model)
         }
         .width('100%')
       }
@@ -745,7 +745,7 @@ export struct TrainingPlanAssistant {
         .padding(16)
       } else {
         List({ scroller: this.scroller }) {
-          ForEach(this.messages, (msg: ChatMessageItem) => {
+          ForEach(this.messages, (msg: ChatMessageItem, index: number) => {
             ListItem() {
               Row() {
                 if (msg.role === 'user') {
@@ -771,7 +771,7 @@ export struct TrainingPlanAssistant {
               .width('100%')
               .margin({ top: 8, bottom: 8 })
             }
-          })
+          }, (msg: ChatMessageItem, index: number) => `msg_${index}_${msg.role}`)
           
           if (this.isLoading) {
             ListItem() {

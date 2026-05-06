@@ -133,7 +133,6 @@ struct AboutPage {
         this.buildFeatureItem('培养计划', '查看专业培养方案，规划学习路径')
         this.buildFeatureItem('学分进度', '查看学分完成情况，掌握学业进度')
         this.buildFeatureItem('考试安排', '查看考试时间和地点，合理安排复习')
-        this.buildFeatureItem('校园地图', '查看校园建筑的地点，方便规划线路')
       }
       .width('100%')
     }

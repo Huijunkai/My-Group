@@ -13,6 +13,10 @@
     "pages": "$profile:main_pages",
     "metadata": [
       {
+        "name": "client_id",
+        "value": "909602580846101184"
+      },
+      {
         "name": "ohos.network.config",
         "resource": "$profile:network_config"
       }

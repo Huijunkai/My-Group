@@ -86,7 +86,7 @@ struct PrivacySettingsPage {
         .width('100%')
         .margin({ bottom: 12 })
 
-      Text('青序 APP 系由个人开发者独立开发的非官方移动应用程序。本应用仅通过教务系统采集您的必要数据以提供服务，所有数据均存储在您的本地设备上，不会上传至云端服务器。')
+      Text('青序 APP 系由个人开发者独立开发的非官方移动应用程序。本应用仅通过教务系统采集您的必要数据以提供服务，用户个人信息将采取本地存储与云端加密存储相结合的方式。本地存储用于快速访问和离线使用，云端存储用于数据备份和跨设备同步。所有云端存储的个人数据均经过严格的加密处理，采用AES-256位加密算法进行数据加密，确保数据在传输和存储过程中的安全性。')
         .fontSize(14)
         .fontColor($r('app.color.text_secondary'))
         .lineHeight(22)
@@ -139,7 +139,7 @@ struct PrivacySettingsPage {
             .width(4)
             .height(1)
         }
-      })
+      }, (index: number) => `divider_${index}`)
     }
     .width('100%')
     .justifyContent(FlexAlign.Center)

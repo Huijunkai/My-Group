@@ -5,7 +5,7 @@
  * - 学生数据同步
  * - 公告获取
  * - 空教室查询
- *
+ * 
  * @module ApiClient
  */
 
@@ -236,6 +236,23 @@ export interface RoomSchedule {
   schedule: DaySchedule[];
 }
 
+export interface WaterScanResult {
+  location: string;
+  userid: string;
+  saler: string;
+  openid?: string;
+  deviceid?: string;
+  balance?: string;
+  cardNo?: string;
+  ownerName?: string;
+}
+
+interface WaterScanResponse {
+  success: boolean;
+  message?: string;
+  data?: WaterScanResult;
+}
+
 interface AnnouncementResponse {
   success: boolean;
   data?: Announcement[];
@@ -301,8 +318,40 @@ interface RequestBody {
 }
 
 export class ApiClient {
-  private static httpRequest: http.HttpRequest = http.createHttp();
+  private static httpRequest: http.HttpRequest | null = null;
   private static dataStore: DataStore = DataStore.getInstance();
+
+  private static getHttpRequest(): http.HttpRequest {
+    if (!ApiClient.httpRequest) {
+      ApiClient.httpRequest = http.createHttp();
+    }
+    return ApiClient.httpRequest;
+  }
+
+  private static safeJsonParse<T>(jsonString: string, defaultValue: T): T {
+    try {
+      if (!jsonString || typeof jsonString !== 'string') {
+        console.warn('ApiClient: Invalid input for JSON parse');
+        return defaultValue;
+      }
+      return JSON.parse(jsonString) as T;
+    } catch (error) {
+      console.error('ApiClient: JSON parse error:', error, 'Input:', jsonString.substring(0, 100));
+      return defaultValue;
+    }
+  }
+
+  static async destroy(): Promise<void> {
+    if (ApiClient.httpRequest) {
+      try {
+        await ApiClient.httpRequest.destroy();
+        ApiClient.httpRequest = null;
+        console.log('ApiClient: HttpRequest destroyed successfully');
+      } catch (error) {
+        console.error('ApiClient: Failed to destroy HttpRequest:', error);
+      }
+    }
+  }
 
   static async syncStudent(username: string, password: string, semester?: string): Promise<SyncResult> {
     const url = `${BASE_URL}/api/sync`;
@@ -315,7 +364,7 @@ export class ApiClient {
     }
 
     try {
-      const response: http.HttpResponse = await ApiClient.httpRequest.request(url, {
+      const response: http.HttpResponse = await ApiClient.getHttpRequest().request(url, {
         method: http.RequestMethod.POST,
         header: {
           'Content-Type': 'application/json'
@@ -328,7 +377,7 @@ export class ApiClient {
         ? response.result as string
         : JSON.stringify(response.result);
 
-      const json = JSON.parse(resultString) as SyncResponse;
+      const json = ApiClient.safeJsonParse<SyncResponse>(resultString, { success: false, message: '数据解析失败' });
 
       if (!json.success || !json.data) {
         const result: SyncResult = {
@@ -575,7 +624,7 @@ export class ApiClient {
     const url = `${BASE_URL}/api/semester/latest`;
 
     try {
-      const response: http.HttpResponse = await ApiClient.httpRequest.request(url, {
+      const response: http.HttpResponse = await ApiClient.getHttpRequest().request(url, {
         method: http.RequestMethod.GET,
         expectDataType: http.HttpDataType.STRING
       });
@@ -584,7 +633,7 @@ export class ApiClient {
         ? response.result as string
         : JSON.stringify(response.result);
 
-      const json: LatestSemesterResponse = JSON.parse(resultString);
+      const json: LatestSemesterResponse = ApiClient.safeJsonParse<LatestSemesterResponse>(resultString, { success: false });
       if (json.success && json.data && json.data.semester) {
         return json.data.semester;
       }
@@ -599,7 +648,7 @@ export class ApiClient {
     const url = `${BASE_URL}/api/announcements?limit=${limit}&offset=${offset}`;
 
     try {
-      const response: http.HttpResponse = await ApiClient.httpRequest.request(url, {
+      const response: http.HttpResponse = await ApiClient.getHttpRequest().request(url, {
         method: http.RequestMethod.GET,
         expectDataType: http.HttpDataType.STRING
       });
@@ -608,7 +657,7 @@ export class ApiClient {
         ? response.result as string
         : JSON.stringify(response.result);
 
-      const json: PaginatedAnnouncementResponse = JSON.parse(resultString);
+      const json: PaginatedAnnouncementResponse = ApiClient.safeJsonParse<PaginatedAnnouncementResponse>(resultString, { success: false, data: [], total: 0 });
       if (json.success && json.data) {
         return {
           announcements: json.data,
@@ -632,7 +681,7 @@ export class ApiClient {
     const apiUrl = `${BASE_URL}/api/announcements/detail?url=${encodeURIComponent(url)}`;
 
     try {
-      const response: http.HttpResponse = await ApiClient.httpRequest.request(apiUrl, {
+      const response: http.HttpResponse = await ApiClient.getHttpRequest().request(apiUrl, {
         method: http.RequestMethod.GET,
         expectDataType: http.HttpDataType.STRING
       });
@@ -641,7 +690,7 @@ export class ApiClient {
         ? response.result as string
         : JSON.stringify(response.result);
 
-      const json: AnnouncementDetailResponse = JSON.parse(resultString);
+      const json: AnnouncementDetailResponse = ApiClient.safeJsonParse<AnnouncementDetailResponse>(resultString, { success: false });
       if (json.success && json.data) {
         return json.data;
       }
@@ -656,7 +705,7 @@ export class ApiClient {
     const url = `${BASE_URL}/api/emptyroom/campuses`;
 
     try {
-      const response: http.HttpResponse = await ApiClient.httpRequest.request(url, {
+      const response: http.HttpResponse = await ApiClient.getHttpRequest().request(url, {
         method: http.RequestMethod.GET,
         expectDataType: http.HttpDataType.STRING
       });
@@ -665,7 +714,7 @@ export class ApiClient {
         ? response.result as string
         : JSON.stringify(response.result);
 
-      const json: CampusResponse = JSON.parse(resultString);
+      const json: CampusResponse = ApiClient.safeJsonParse<CampusResponse>(resultString, { success: false });
       if (json.success && json.data) {
         return json.data;
       }
@@ -680,7 +729,7 @@ export class ApiClient {
     const url = `${BASE_URL}/api/emptyroom/buildings?campus=${campusCode}`;
 
     try {
-      const response: http.HttpResponse = await ApiClient.httpRequest.request(url, {
+      const response: http.HttpResponse = await ApiClient.getHttpRequest().request(url, {
         method: http.RequestMethod.GET,
         expectDataType: http.HttpDataType.STRING
       });
@@ -689,7 +738,7 @@ export class ApiClient {
         ? response.result as string
         : JSON.stringify(response.result);
 
-      const json: BuildingResponse = JSON.parse(resultString);
+      const json: BuildingResponse = ApiClient.safeJsonParse<BuildingResponse>(resultString, { success: false });
       if (json.success && json.data) {
         return json.data;
       }
@@ -704,7 +753,7 @@ export class ApiClient {
     const url = `${BASE_URL}/api/emptyroom/query`;
 
     try {
-      const response: http.HttpResponse = await ApiClient.httpRequest.request(url, {
+      const response: http.HttpResponse = await ApiClient.getHttpRequest().request(url, {
         method: http.RequestMethod.POST,
         header: {
           'Content-Type': 'application/json'
@@ -717,7 +766,7 @@ export class ApiClient {
         ? response.result as string
         : JSON.stringify(response.result);
 
-      const json: EmptyRoomResponse = JSON.parse(resultString);
+      const json: EmptyRoomResponse = ApiClient.safeJsonParse<EmptyRoomResponse>(resultString, { success: false });
       if (json.success && json.data) {
         return json.data;
       }
@@ -732,7 +781,7 @@ export class ApiClient {
     const url = `${BASE_URL}/api/emptyroom/schedule`;
 
     try {
-      const response: http.HttpResponse = await ApiClient.httpRequest.request(url, {
+      const response: http.HttpResponse = await ApiClient.getHttpRequest().request(url, {
         method: http.RequestMethod.POST,
         header: {
           'Content-Type': 'application/json'
@@ -745,7 +794,7 @@ export class ApiClient {
         ? response.result as string
         : JSON.stringify(response.result);
 
-      const json: RoomScheduleResponse = JSON.parse(resultString);
+      const json: RoomScheduleResponse = ApiClient.safeJsonParse<RoomScheduleResponse>(resultString, { success: false });
       if (json.success && json.data) {
         return json.data;
       }
@@ -756,11 +805,40 @@ export class ApiClient {
     }
   }
 
+  static async scanWaterQrcode(scanUrl: string): Promise<WaterScanResponse> {
+    const url = `${BASE_URL}/api/water/scan`;
+
+    try {
+      const response: http.HttpResponse = await ApiClient.getHttpRequest().request(url, {
+        method: http.RequestMethod.POST,
+        header: {
+          'Content-Type': 'application/json'
+        },
+        extraData: JSON.stringify({ scanUrl: scanUrl }),
+        expectDataType: http.HttpDataType.STRING
+      });
+
+      const resultString: string = typeof response.result === 'string'
+        ? response.result as string
+        : JSON.stringify(response.result);
+
+      const json: WaterScanResponse = ApiClient.safeJsonParse<WaterScanResponse>(resultString, { success: false, message: '网络异常' });
+      return json;
+    } catch (error) {
+      console.error('scanWaterQrcode error:', JSON.stringify(error));
+      const result: WaterScanResponse = {
+        success: false,
+        message: '网络异常，请稍后重试'
+      };
+      return result;
+    }
+  }
+
   static async registerPushToken(studentId: string, pushToken: string): Promise<SyncResult> {
     const url = `${BASE_URL}/api/push/register`;
 
     try {
-      const response: http.HttpResponse = await ApiClient.httpRequest.request(url, {
+      const response: http.HttpResponse = await ApiClient.getHttpRequest().request(url, {
         method: http.RequestMethod.POST,
         header: {
           'Content-Type': 'application/json'
@@ -773,7 +851,7 @@ export class ApiClient {
         ? response.result as string
         : JSON.stringify(response.result);
 
-      const json: SyncResponse = JSON.parse(resultString);
+      const json: SyncResponse = ApiClient.safeJsonParse<SyncResponse>(resultString, { success: false });
       const result: SyncResult = {
         success: json.success,
         message: json.message
@@ -793,7 +871,7 @@ export class ApiClient {
     const url = `${BASE_URL}/api/push/unregister`;
 
     try {
-      const response: http.HttpResponse = await ApiClient.httpRequest.request(url, {
+      const response: http.HttpResponse = await ApiClient.getHttpRequest().request(url, {
         method: http.RequestMethod.POST,
         header: {
           'Content-Type': 'application/json'
@@ -806,7 +884,7 @@ export class ApiClient {
         ? response.result as string
         : JSON.stringify(response.result);
 
-      const json: SyncResponse = JSON.parse(resultString);
+      const json: SyncResponse = ApiClient.safeJsonParse<SyncResponse>(resultString, { success: false });
       const result: SyncResult = {
         success: json.success,
         message: json.message

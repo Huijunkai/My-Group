@@ -4,6 +4,7 @@
       {
         "name": "default",
         "signingConfig": "debug",
+        "targetSdkVersion": "6.1.0(23)",
         "compatibleSdkVersion": "6.1.0(23)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
@@ -11,14 +12,13 @@
             "caseSensitiveCheck": true,
             "useNormalizedOHMUrl": true
           }
-        },
-        "targetSdkVersion": "6.1.0(23)"
+        }
       },
       {
         "name": "debug",
         "signingConfig": "debug",
-        "compileSdkVersion": "6.0.2(22)",
-        "targetSdkVersion": "6.0.2(22)",
+        "compileSdkVersion": "6.1.0(23)",
+        "targetSdkVersion": "6.1.0(23)",
         "compatibleSdkVersion": "6.0.2(22)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
@@ -31,8 +31,8 @@
       {
         "name": "release",
         "signingConfig": "release",
-        "compileSdkVersion": "6.0.2(22)",
-        "targetSdkVersion": "6.0.2(22)",
+        "compileSdkVersion": "6.1.0(23)",
+        "targetSdkVersion": "6.1.0(23)",
         "compatibleSdkVersion": "6.0.2(22)",
         "runtimeOS": "HarmonyOS"
       }
@@ -53,13 +53,14 @@
         "name": "debug",
         "type": "HarmonyOS",
         "material": {
-          "storeFile": "F:/My-Group/CompetitionProject/qinxu/qinxu.p12",
-          "storePassword": "0000001AFAEDC4F4397C69B9CE3146DB850FBEFE380BBE631B3276270AA04EC04156A9E881720F51EB8A",
+          "storeFile": "F:/My-HarmonyOS/HarmonyOS-APP/qinxu/qinxu.p12",
+          "storePassword": "0000001AB4E37FBEF61EB449A364A5E79EEE763F2796816671064F7640A64F5475299FED5CBED6E0C838",
           "keyAlias": "yiqi",
-          "keyPassword": "0000001A667D45527C54DE33C911FD9ED218FA99FC3969941AE4AC694B1E77DCC78D8A2861BB7A56FA32",
+          "keyPassword": "0000001A9CE346249299626CF0F9E10CD719B2BB576EC2E333EB9CADC96E5A7D889DDBA69A6B64F4831D",
+          "profile": "F:/My-HarmonyOS/HarmonyOS-APP/qinxu/qinxuDebug.p7b",
           "signAlg": "SHA256withECDSA",
-          "profile": "F:/My-Group/CompetitionProject/qinxu/qinxuDebug.p7b",
-          "certpath": "F:/My-Group/CompetitionProject/qinxu/qinxu.cer"
+          "storeFile": "F:/My-HarmonyOS/HarmonyOS-APP/qinxu/qinxu.p12",
+          "storePassword": "0000001A69AA2CDA4858E2C3EA0696961ED8E09F65FA0AF3C276C4B17D4BF6A0469E61764FCC65ACA590"
         }
       },
       {

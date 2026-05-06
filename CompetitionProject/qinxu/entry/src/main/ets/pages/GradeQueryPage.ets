@@ -170,7 +170,7 @@ struct GradeQueryPage {
                     Column({ space: 12 }) {
                       ForEach(this.filteredGrades.get(semester), (item: GradeItem, index: number) => {
                         this.buildGradeItem(item, index, semester, `${semester}_${index}`)
-                      })
+                      }, (item: GradeItem, index: number) => `${semester}_${index}`)
                     }
                     .width('100%')
                     .padding({ left: 16, right: 16, top: 12, bottom: 12 })
@@ -201,7 +201,7 @@ struct GradeQueryPage {
                   curve: Curve.EaseOut,
                   delay: 0
                 })
-              })
+              }, (semester: string) => semester)
             }
           }
           .width('100%')

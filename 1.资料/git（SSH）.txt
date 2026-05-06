@@ -13,3 +13,11 @@ Title 随便填，Key 粘贴刚才复制的内容
 ssh -T git@github.com
 
 Hi xxx! You've successfully authenticated...
+
+
+
+"C:\Windows\System32\drivers\etc\hosts"
+
+140.82.113.5    api.github.com
+185.199.108.153 copilot-proxy.githubusercontent.com
+185.199.109.153 copilot-proxy.githubusercontent.com

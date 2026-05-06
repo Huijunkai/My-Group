@@ -24,24 +24,23 @@ export default class EntryAbility extends UIAbility {
     try {
       const dataStore = DataStore.getInstance();
       await dataStore.initialize(this.context);
-      
-      await this.loadAIConfig();
 
       const themeColorManager = ThemeColorManager.getInstance();
-      await themeColorManager.initialize(this.context);
-
       const localDataManager = LocalDataManager.getInstance();
-      await localDataManager.initialize(this.context);
-
       const notificationManager = NotificationManager.getInstance();
-      await notificationManager.initialize(this.context);
-
       const courseReminderService = CourseReminderService.getInstance();
-      await courseReminderService.initialize(this.context);
-
       const pushNotificationService = PushNotificationService.getInstance();
-      await pushNotificationService.initialize(this.context);
-      pushNotificationService.registerMessageReceiver(this);
+
+      await Promise.all([
+        this.loadAIConfig(),
+        themeColorManager.initialize(this.context),
+        localDataManager.initialize(this.context),
+        notificationManager.initialize(this.context),
+        courseReminderService.initialize(this.context),
+        pushNotificationService.initialize(this.context).then(() => {
+          pushNotificationService.registerMessageReceiver(this);
+        })
+      ]);
 
       await this.applyThemeMode();
 

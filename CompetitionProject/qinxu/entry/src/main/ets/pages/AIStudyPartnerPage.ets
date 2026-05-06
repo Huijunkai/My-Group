@@ -228,7 +228,7 @@ struct AIStudyPartnerPage {
   }
 
   private generateChatId(): string {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
   }
 
   private getChatTitle(): string {
@@ -677,14 +677,14 @@ struct AIStudyPartnerPage {
               }
               .width('100%')
               .padding(12)
-              .backgroundColor(this.currentChatId === history.id ? 
+              .backgroundColor(this.currentChatId === history.id ?
                 $r('app.color.background_tertiary') : 'transparent')
               .borderRadius(8)
               .onClick(() => {
                 this.loadChat(history);
               })
             }
-          })
+          }, (history: ChatHistory) => history.id.toString())
         }
         .width('100%')
         .layoutWeight(1)
@@ -721,7 +721,7 @@ struct AIStudyPartnerPage {
               .onClick(() => {
                 this.selectedModel = model;
               })
-          })
+          }, (model: AIModel) => model)
         }
         .width('100%')
       }
@@ -841,7 +841,7 @@ struct AIStudyPartnerPage {
                 this.selectedDirection = option.key;
                 this.startAnalysis(option.key);
               })
-            })
+            }, (option: DirectionOption) => option.key)
           }
           .width('100%')
 
@@ -869,7 +869,7 @@ struct AIStudyPartnerPage {
         .padding(16)
       } else {
         List({ scroller: this.scroller }) {
-          ForEach(this.messages, (msg: ChatMessageItem) => {
+          ForEach(this.messages, (msg: ChatMessageItem, index: number) => {
             ListItem() {
               Row() {
                 if (msg.role === 'user') {
@@ -895,7 +895,7 @@ struct AIStudyPartnerPage {
               .width('100%')
               .margin({ top: 8, bottom: 8 })
             }
-          })
+          }, (msg: ChatMessageItem, index: number) => `msg_${index}_${msg.role}`)
           
           if (this.isLoading) {
             ListItem() {
@@ -1034,7 +1034,7 @@ struct AIStudyPartnerPage {
           this.showDirectionSelector = false;
           this.startAnalysis(option.key);
         })
-      })
+      }, (option: DirectionOption) => option.key)
     }
     .width('100%')
     .padding(20)
@@ -1091,7 +1091,7 @@ struct AIStudyPartnerPage {
             .onClick(() => {
               this.selectAnswer(index);
             })
-          })
+          }, (option: string, index: number) => `q${this.currentQuestionIndex}_opt${index}`)
 
           if (this.showAnswer && this.questions[this.currentQuestionIndex].explanation) {
             Text(`解析: ${this.questions[this.currentQuestionIndex].explanation}`)
