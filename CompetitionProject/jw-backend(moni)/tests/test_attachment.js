@@ -1,10 +1,11 @@
-const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 const cheerio = require('cheerio');
 
 async function test() {
-    const url = 'https://jwc.bwgl.cn/tzgg/2026/3/926fab7d026342739830104e7dc6a9b1.htm';
-    const response = await axios.get(url);
-    const $ = cheerio.load(response.data);
+    const htmlPath = path.resolve(__dirname, 'fixtures', 'test_attachment.html');
+    const html = fs.readFileSync(htmlPath, 'utf8');
+    const $ = cheerio.load(html);
     
     console.log('=== 查找附件 ===');
     $('a[href$=".pdf"], a[href$=".doc"], a[href$=".docx"], a[href$=".xls"], a[href$=".xlsx"]').each((i, el) => {
