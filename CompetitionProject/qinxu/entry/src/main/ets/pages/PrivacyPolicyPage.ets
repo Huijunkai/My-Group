@@ -1,11 +1,11 @@
 /**
  * 隐私政策页面模块
- * 
+ *
  * 展示应用隐私政策和软件说明，包括：
  * - 软件功能说明
  * - 使用前提条件
  * - 隐私政策内容
- * 
+ *
  * @module PrivacyPolicyPage
  */
 
@@ -13,11 +13,11 @@ import { router } from '@kit.ArkUI';
 
 /**
  * 隐私政策页面组件
- * 
+ *
  * 展示应用的隐私政策和相关说明
- * 
+ *
  * @example
- * ```typescript
+* ```typescript
  * router.pushUrl({ url: 'pages/PrivacyPolicyPage' });
  * ```
  */
@@ -59,7 +59,7 @@ struct PrivacyPolicyPage {
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 12, bottom: 12 })
-    .backgroundColor($r('app.color.background_primary'))
+    .backgroundColor('transparent')
   }
 
   @Builder

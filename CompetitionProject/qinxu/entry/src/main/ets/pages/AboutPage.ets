@@ -5,7 +5,6 @@
  * - 应用简介
  * - 主要功能介绍
  * - 联系方式
- * - 版本信息
  * 
  * @module AboutPage
  */
@@ -64,12 +63,11 @@ struct AboutPage {
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 12, bottom: 12 })
-    .backgroundColor($r('app.color.background_primary'))
   }
 
   /**
    * 构建页面内容
-   * 包含应用简介、功能、联系方式和版本信息
+   * 包含应用简介、主要功能、联系方式和版本信息
    */
   @Builder
   buildContent() {
@@ -80,8 +78,6 @@ struct AboutPage {
         this.buildFeatures()
         this.buildDashedDivider()
         this.buildContact()
-        this.buildDashedDivider()
-        this.buildVersion()
       }
       .width('100%')
       .padding(16)
@@ -180,7 +176,7 @@ struct AboutPage {
         .margin({ bottom: 12 })
 
       Column({ space: 10 }) {
-        this.buildContactItem('邮箱', 'yelan12192023@163.com')
+        this.buildContactItem('邮箱', '***********@163.com')
       }
       .width('100%')
     }
@@ -211,52 +207,7 @@ struct AboutPage {
     }
     .width('100%')
   }
-
-  /**
-   * 构建版本信息卡片
-   */
-  @Builder
-  buildVersion() {
-    Column() {
-      Text('版本信息')
-        .fontSize(16)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.text_primary'))
-        .width('100%')
-        .margin({ bottom: 12 })
-
-      Column({ space: 10 }) {
-        this.buildVersionItem('当前版本', 'v1.0.0')
-      }
-      .width('100%')
-    }
-    .width('100%')
-    .padding(16)
-    .backgroundColor($r('app.color.background_primary'))
-    .borderRadius(16)
-  }
-
-  /**
-   * 构建版本项
-   * 
-   * @param title - 版本项名称
-   * @param value - 版本项值
-   */
-  @Builder
-  buildVersionItem(title: string, value: string) {
-    Row() {
-      Text(title)
-        .fontSize(14)
-        .fontColor($r('app.color.text_secondary'))
-        .width('40%')
-
-      Text(value)
-        .fontSize(14)
-        .fontColor($r('app.color.text_primary'))
-        .layoutWeight(1)
-    }
-    .width('100%')
-  }
+  
 
   /**
    * 构建虚线分隔符

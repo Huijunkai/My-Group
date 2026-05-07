@@ -153,7 +153,6 @@ struct PushSettingsPage {
       }
       .width('100%')
       .padding({ left: 16, right: 16, top: 12, bottom: 12 })
-      .backgroundColor($r('app.color.background_primary'))
 
       Scroll() {
         Column({ space: 16 }) {

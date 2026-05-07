@@ -109,7 +109,6 @@ struct GradeQueryPage {
       }
       .width('100%')
       .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-      .backgroundColor($r('app.color.background_primary'))
 
       Row() {
         TextInput({ placeholder: '搜索课程名称', text: this.searchText })
@@ -127,7 +126,6 @@ struct GradeQueryPage {
       }
       .width('100%')
       .padding({ left: 16, right: 16, top: 16, bottom: 16 })
-      .backgroundColor($r('app.color.background_primary'))
       .margin({ top: 8 })
 
       if (this.isLoading) {

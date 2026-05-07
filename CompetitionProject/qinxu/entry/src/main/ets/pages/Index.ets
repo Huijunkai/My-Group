@@ -158,11 +158,6 @@ struct Login {
           .width('100%')
           .padding({ left: 32, right: 32 })
           .layoutWeight(1)
-
-          Text('© 青序 v1.0')
-            .fontSize(12)
-            .fontColor($r('app.color.text_tertiary'))
-            .margin({ bottom: 32 })
         }
         .width('100%')
         .height('100%')

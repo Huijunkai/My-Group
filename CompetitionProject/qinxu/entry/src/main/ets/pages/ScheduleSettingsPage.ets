@@ -305,7 +305,6 @@ struct ScheduleSettingsPage {
     }
     .width('100%')
     .padding({ left: 8, right: 8, top: 8, bottom: 8 })
-    .backgroundColor($r('app.color.background_primary'))
   }
 
   @Builder

@@ -159,7 +159,6 @@ struct ExamPage {
       }
       .width('100%')
       .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-      .backgroundColor($r('app.color.background_primary'))
 
       if (this.isLoading) {
         Column() {
