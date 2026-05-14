@@ -134,14 +134,17 @@ class ElectricityMonitor {
         return;
       }
 
+      const numericBalance = typeof balance === 'number' ? balance : parseFloat(balance) || 0;
+      const numericThreshold = typeof threshold === 'number' ? threshold : parseFloat(threshold) || 0;
+
       const result = await pushService.sendPushNotification(
         userToken.pushToken,
         '电费余额不足提醒',
-        `您的宿舍电费余额为 ${balance.toFixed(2)} 元，已低于设定的 ${threshold} 元阈值，请及时充值！`,
+        `您的宿舍电费余额为 ${numericBalance.toFixed(2)} 元，已低于设定的 ${numericThreshold} 元阈值，请及时充值！`,
         'electricity_low',
         {
-          balance: balance,
-          threshold: threshold,
+          balance: numericBalance,
+          threshold: numericThreshold,
           timestamp: Date.now()
         }
       );
