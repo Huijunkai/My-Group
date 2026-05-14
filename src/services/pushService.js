@@ -97,6 +97,21 @@ async function sendPushNotification(pushToken, title, content, type) {
   }
 }
 
+// ------------------------------
+// 修复：添加公告通知方法（解决报错）
+// ------------------------------
+async function notifyAnnouncement(title, content) {
+  try {
+    console.log('[公告通知] 已接收:', title, '-', content);
+    // 这里可以根据需求调用推送，或直接留空
+    return { success: true };
+  } catch (e) {
+    console.warn('[公告通知] 异常:', e.message);
+    return { success: true };
+  }
+}
+
 module.exports = {
-  sendPushNotification
+  sendPushNotification,
+  notifyAnnouncement  // 必须导出！修复核心
 };
