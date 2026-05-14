@@ -1,273 +1,121 @@
-const { BASE_URL } = require('../utils/constants');
-const { createInstance } = require('../utils/request');
-const cheerio = require('cheerio');
+const { getMockEmptyRooms } = require('../mockData');
 
 const CAMPUSES = [
     { code: '01', name: '桂林校区' },
     { code: 'oW', name: '南宁校区' }
 ];
 
-const PERIOD_MAP = {
-    '0102': [1, 2],
-    '0304': [3, 4],
-    '0506': [5, 6],
-    '0708': [7, 8],
-    '0910': [9, 10],
-    '1112': [11, 12]
+const BUILDINGS = {
+    '01': [
+        { code: '1', name: '第一教学楼' },
+        { code: '2', name: '第二教学楼' },
+        { code: '3', name: '第三教学楼' }
+    ],
+    'oW': [
+        { code: 'A', name: '教A' },
+        { code: 'B', name: '教B' },
+        { code: 'C', name: '教C' },
+        { code: 'D', name: '教D' }
+    ]
 };
 
 async function getCampuses() {
+    console.log('[Mock Empty Room] 获取校区列表');
     return CAMPUSES;
 }
 
 async function getBuildings(cookies, campusCode) {
+    console.log('[Mock Empty Room] 获取教学楼列表 - 校区:', campusCode);
+    
     if (!campusCode) {
         return [];
     }
     
-    if (!cookies || cookies.length === 0) {
-        return [];
-    }
-    
-    try {
-        const instance = createInstance(cookies, `${BASE_URL}/kbcx/kbxx_classroom`);
-        const response = await instance.get(`${BASE_URL}/kbcx/getJxlByAjax?xqid=${campusCode}`);
-        
-        if (response.data && Array.isArray(response.data)) {
-            return response.data.map(item => ({
-                code: item.dm || '',
-                name: item.dmmc || ''
-            }));
-        }
-        return [];
-    } catch (error) {
-        console.error('获取教学楼失败:', error.message);
-        return [];
-    }
+    return BUILDINGS[campusCode] || [];
 }
 
 async function queryEmptyRooms(cookies, params) {
-    if (!cookies || cookies.length === 0) {
-        return [];
-    }
+    console.log('[Mock Empty Room] 查询空教室 - 参数:', params);
     
-    const { semester, campus, building, weekStart, weekEnd, periodStart, periodEnd } = params;
+    await new Promise(resolve => setTimeout(resolve, 300));
     
-    try {
-        const instance = createInstance(cookies, `${BASE_URL}/kbcx/kbxx_classroom`);
-        
-        const postData = new URLSearchParams();
-        postData.append('xnxqh', semester || '');
-        postData.append('skyx', '');
-        postData.append('xqid', campus || '');
-        postData.append('jzwid', building || '');
-        postData.append('zc1', weekStart ? String(weekStart) : '');
-        postData.append('zc2', weekEnd ? String(weekEnd) : '');
-        postData.append('jc1', periodStart || '');
-        postData.append('jc2', periodEnd || '');
-        
-        const response = await instance.post(`${BASE_URL}/kbcx/kbxx_classroom_ifr`, postData);
-        
-        return parseEmptyRooms(response.data);
-    } catch (error) {
-        console.error('查询空教室失败:', error.message);
-        return [];
-    }
+    const { weekStart, weekEnd, periodStart, periodEnd, campus, building } = params;
+    
+    // 模拟数据：按星期返回空教室
+    const days = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
+    const result = [];
+    
+    days.forEach((day, index) => {
+        const emptyRooms = getMockEmptyRooms(day);
+        emptyRooms.forEach(roomInfo => {
+            const periods = roomInfo.periods.filter(period => {
+                // 过滤节次范围
+                if (periodStart && periodEnd) {
+                    const [start, end] = period.split('-').map(Number);
+                    return start >= periodStart && end <= periodEnd;
+                }
+                return true;
+            });
+            
+            if (periods.length > 0) {
+                result.push({
+                    roomName: roomInfo.room,
+                    building: building || '教A',
+                    campus: campus || 'oW',
+                    capacity: 40,
+                    type: '普通教室',
+                    emptySlots: [{
+                        day: index + 1,
+                        periods: periods.map(p => {
+                            const [start, end] = p.split('-').map(Number);
+                            return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+                        }).flat()
+                    }]
+                });
+            }
+        });
+    });
+    
+    return result;
 }
 
 async function queryRoomSchedule(cookies, params) {
-    if (!cookies || cookies.length === 0) {
+    console.log('[Mock Empty Room] 查询教室课表 - 参数:', params);
+    
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    const { roomName } = params;
+    
+    if (!roomName) {
         return null;
     }
     
-    const { roomName, semester, campus, building, weekStart, weekEnd, periodStart, periodEnd } = params;
+    // 模拟数据：返回教室课表
+    const schedule = [];
+    const days = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
     
-    try {
-        const instance = createInstance(cookies, `${BASE_URL}/kbcx/kbxx_classroom`);
+    days.forEach((day, index) => {
+        const emptyRooms = getMockEmptyRooms(day);
+        const room = emptyRooms.find(r => r.room === roomName);
         
-        const postData = new URLSearchParams();
-        postData.append('xnxqh', semester || '');
-        postData.append('skyx', '');
-        postData.append('xqid', campus || '');
-        postData.append('jzwid', building || '');
-        postData.append('zc1', weekStart ? String(weekStart) : '');
-        postData.append('zc2', weekEnd ? String(weekEnd) : '');
-        postData.append('jc1', periodStart || '');
-        postData.append('jc2', periodEnd || '');
-        
-        const response = await instance.post(`${BASE_URL}/kbcx/kbxx_classroom_ifr`, postData);
-        
-        return parseRoomSchedule(response.data, roomName);
-    } catch (error) {
-        console.error('查询教室课表失败:', error.message);
-        return null;
-    }
-}
-
-function parseEmptyRooms(html) {
-    const $ = cheerio.load(html);
-    const emptyRooms = [];
-    
-    const table = $('#kbtable');
-    if (table.length === 0) {
-        return emptyRooms;
-    }
-    
-    const rows = table.find('tr');
-    
-    const periodOrder = ['0102', '0304', '0506', '0708', '0910', '1112'];
-    
-    rows.each((rowIndex, row) => {
-        if (rowIndex < 2) return;
-        
-        const cells = $(row).find('td');
-        if (cells.length < 2) return;
-        
-        const roomCell = $(cells[0]);
-        const roomNameFull = roomCell.text().trim();
-        const roomName = extractRoomName(roomNameFull);
-        
-        if (!roomName) return;
-        
-        const emptySlots = [];
-        
-        for (let day = 0; day < 7; day++) {
-            const dayEmptyPeriods = [];
+        if (room) {
+            // 计算非空节次
+            const allPeriods = ['01-02', '03-04', '05-06', '07-08', '09-10', '11-12'];
+            const busyPeriods = allPeriods.filter(period => !room.periods.includes(period));
             
-            for (let periodIdx = 0; periodIdx < 6; periodIdx++) {
-                const cellIndex = 1 + day * 6 + periodIdx;
-                
-                if (cellIndex >= cells.length) continue;
-                
-                const cell = $(cells[cellIndex]);
-                
-                if (isEmptyCell(cell)) {
-                    const periodKey = periodOrder[periodIdx];
-                    const periods = PERIOD_MAP[periodKey];
-                    if (periods) {
-                        dayEmptyPeriods.push(...periods);
-                    }
-                }
-            }
-            
-            if (dayEmptyPeriods.length > 0) {
-                emptySlots.push({
-                    day: day + 1,
-                    periods: [...new Set(dayEmptyPeriods)].sort((a, b) => a - b)
+            if (busyPeriods.length > 0) {
+                schedule.push({
+                    day: index + 1,
+                    periods: busyPeriods
                 });
             }
         }
-        
-        if (emptySlots.length > 0) {
-            emptyRooms.push({
-                roomName: roomName,
-                building: '',
-                campus: '',
-                capacity: '',
-                type: '',
-                emptySlots: emptySlots
-            });
-        }
     });
     
-    return emptyRooms;
-}
-
-function parseRoomSchedule(html, targetRoomName) {
-    const $ = cheerio.load(html);
-    
-    const table = $('#kbtable');
-    if (table.length === 0) {
-        return null;
-    }
-    
-    const rows = table.find('tr');
-    const periodOrder = ['0102', '0304', '0506', '0708', '0910', '1112'];
-    
-    let foundRoom = null;
-    
-    rows.each((rowIndex, row) => {
-        if (rowIndex < 2) return;
-        if (foundRoom) return;
-        
-        const cells = $(row).find('td');
-        if (cells.length < 2) return;
-        
-        const roomCell = $(cells[0]);
-        const roomNameFull = roomCell.text().trim();
-        const roomName = extractRoomName(roomNameFull);
-        
-        if (!roomName) return;
-        
-        if (roomName.toLowerCase() === targetRoomName.toLowerCase() || 
-            roomName === targetRoomName) {
-            const schedule = [];
-            
-            for (let day = 0; day < 7; day++) {
-                const dayPeriods = [];
-                
-                for (let periodIdx = 0; periodIdx < 6; periodIdx++) {
-                    const cellIndex = 1 + day * 6 + periodIdx;
-                    
-                    if (cellIndex >= cells.length) continue;
-                    
-                    const cell = $(cells[cellIndex]);
-                    
-                    if (!isEmptyCell(cell)) {
-                        dayPeriods.push(periodOrder[periodIdx]);
-                    }
-                }
-                
-                if (dayPeriods.length > 0) {
-                    schedule.push({
-                        day: day + 1,
-                        periods: dayPeriods
-                    });
-                }
-            }
-            
-            foundRoom = {
-                roomName: roomName,
-                schedule: schedule
-            };
-        }
-    });
-    
-    return foundRoom;
-}
-
-function extractRoomName(fullName) {
-    if (!fullName) return null;
-    
-    const aMatch = fullName.match(/([A-Za-z]\d+)/);
-    if (aMatch) {
-        return aMatch[1];
-    }
-    
-    const pureNumMatch = fullName.match(/(^|\D)(\d{2,})($|\D)/);
-    if (pureNumMatch) {
-        const num = pureNumMatch[2];
-        if (/^\d+$/.test(num)) {
-            return num;
-        }
-    }
-    
-    return null;
-}
-
-function isEmptyCell(cell) {
-    const kbcontent = cell.find('.kbcontent1');
-    
-    if (kbcontent.length === 0) {
-        return true;
-    }
-    
-    const content = kbcontent.text().trim();
-    if (!content || content === '' || content === '&nbsp;') {
-        return true;
-    }
-    
-    return false;
+    return {
+        roomName: roomName,
+        schedule: schedule
+    };
 }
 
 module.exports = {

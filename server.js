@@ -2,6 +2,7 @@ require('dotenv').config({ path: __dirname + '/.env' });
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
+const { isMockMode, getModeInfo } = require('./src/mode');
 const { login } = require('./src/api/auth');
 const { getStudentInfo, getTimetable, getGrades, getExamSchedule, getSemesterPlan, getStudyProgress } = require('./src/api/student');
 const { getAnnouncements, getAnnouncementDetail } = require('./src/api/announcement');
@@ -22,12 +23,25 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
+const mockMode = isMockMode();
+
+console.log(`========================================`);
+console.log(`教务系统后端服务启动`);
+console.log(`运行模式: ${mockMode ? '模拟数据模式 (MOCK)' : '生产环境模式 (PRODUCTION)'}`);
+console.log(`环境变量 MOCK_MODE: ${process.env.MOCK_MODE || '未设置'}`);
+console.log(`========================================`);
 
 const userPushTokens = new Map();
 const userSessions = new Map();
 
 app.get('/', (req, res) => {
-    res.json({ message: '教务系统代理服务已启动', status: 'running', mode: 'proxy-only' });
+    const modeInfo = getModeInfo();
+    res.json({ 
+        message: `教务系统代理服务已启动（${modeInfo.isMock ? '模拟数据模式' : '生产环境模式'}）`, 
+        status: 'running', 
+        mode: modeInfo.mode,
+        ...modeInfo
+    });
 });
 
 app.get('/api/version', (_req, res) => {
@@ -37,17 +51,56 @@ app.get('/api/version', (_req, res) => {
         pkgVersion = pkg && pkg.version ? pkg.version : 'unknown';
     } catch (_e) { }
 
+    const modeInfo = getModeInfo();
+
     res.json({
-        name: 'jw-backend',
-        version: pkgVersion,
-        buildTime: new Date().toISOString(),
-        mode: 'proxy-only',
-        features: {
-            timetableFollowRedirects: true,
-            noDatabase: true,
-            encryption: true
-        }
+            name: 'jw-backend',
+            version: pkgVersion,
+            buildTime: new Date().toISOString(),
+            mode: modeInfo.mode,
+            isMock: modeInfo.isMock,
+            features: {
+                timetableFollowRedirects: true,
+                noDatabase: false,
+                encryption: true,
+                mockData: modeInfo.isMock
+            },
+            config: {
+                MOCK_MODE: process.env.MOCK_MODE,
+                NODE_ENV: process.env.NODE_ENV
+            }
     });
+});
+
+app.get('/api/mode/info', (req, res) => {
+    const modeInfo = getModeInfo();
+    
+    if (modeInfo.isMock) {
+        res.json({
+            success: true,
+            ...modeInfo,
+            message: '当前使用模拟数据模式',
+            availableTestAccounts: [
+                { studentId: '202101001', password: '123456', name: '张三' },
+                { studentId: '202101002', password: '123456', name: '李四' },
+                { studentId: '202102001', password: '123456', name: '王五' },
+                { studentId: '202103001', password: '123456', name: '赵六' },
+                { studentId: '202201001', password: '123456', name: '钱七' }
+            ],
+            endpoints: {
+                auth: '/api/sync (POST)',
+                xyyxtAuth: '/api/xyyxt/login (POST)',
+                studentInfo: '登录后自动返回',
+                dormitory: '/api/xyyxt/buildings, /api/xyyxt/rooms'
+            }
+        });
+    } else {
+        res.json({
+            success: true,
+            ...modeInfo,
+            message: '当前使用生产环境模式（真实数据）'
+        });
+    }
 });
 
 app.get('/api/encryption/key', (_req, res) => {
