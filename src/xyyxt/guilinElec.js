@@ -1,83 +1,216 @@
-const { mockDormitoryBuildings, generateMockRooms, getMockElectricity } = require('../mockData');
+const axios = require('axios');
+const FormData = require('form-data');
+const { DEFAULT_HEADERS } = require('./constants');
+
+const GUILIN_SERVER_1 = 'http://221.7.150.22:10005';
+const GUILIN_SERVER_2 = 'http://221.7.150.20:10004';
+
+const GUILIN_BUILDING_SERVER_MAP = {
+    '4320': GUILIN_SERVER_1,
+    '4509': GUILIN_SERVER_1,
+    '4722': GUILIN_SERVER_1,
+    '4812': GUILIN_SERVER_1,
+    '6436': GUILIN_SERVER_1,
+    '6819': GUILIN_SERVER_1,
+    'B101': GUILIN_SERVER_2,
+    'B102': GUILIN_SERVER_2,
+    'B8': GUILIN_SERVER_2
+};
+
+const GUILIN_BUILDINGS_SERVER_1 = [
+    { xiaoqu_id: 'glxq', loudong_id: '4320', loudong_name: '桂林校区9栋', xiaoqu_name: '桂林校区' },
+    { xiaoqu_id: 'glxq', loudong_id: '4509', loudong_name: '桂林校区7栋', xiaoqu_name: '桂林校区' },
+    { xiaoqu_id: 'glxq', loudong_id: '4722', loudong_name: '桂林校区12栋', xiaoqu_name: '桂林校区' },
+    { xiaoqu_id: 'glxq', loudong_id: '4812', loudong_name: '桂林校区13栋', xiaoqu_name: '桂林校区' },
+    { xiaoqu_id: 'glxq', loudong_id: '6436', loudong_name: '桂林校区14A栋', xiaoqu_name: '桂林校区' },
+    { xiaoqu_id: 'glxq', loudong_id: '6819', loudong_name: '桂林校区14B栋', xiaoqu_name: '桂林校区' }
+];
+
+const GUILIN_BUILDINGS_SERVER_2 = [
+    { xiaoqu_id: 'glxq', loudong_id: 'B101', loudong_name: '桂林校区10A号楼', xiaoqu_name: '桂林校区' },
+    { xiaoqu_id: 'glxq', loudong_id: 'B102', loudong_name: '桂林校区10B号楼', xiaoqu_name: '桂林校区' },
+    { xiaoqu_id: 'glxq', loudong_id: 'B8', loudong_name: '桂林校区8号楼', xiaoqu_name: '桂林校区' }
+];
+
+function getServerForBuilding(buildingId) {
+    if (GUILIN_BUILDING_SERVER_MAP[buildingId]) {
+        return GUILIN_BUILDING_SERVER_MAP[buildingId];
+    }
+    return GUILIN_SERVER_1;
+}
+
+function getServerForRoom(roomId) {
+    if (!roomId) return GUILIN_SERVER_1;
+    
+    for (const [buildingId, server] of Object.entries(GUILIN_BUILDING_SERVER_MAP)) {
+        if (roomId.includes(buildingId) || roomId.startsWith('H' + buildingId)) {
+            return server;
+        }
+    }
+    
+    if (roomId.startsWith('H') && roomId.length === 5) {
+        return GUILIN_SERVER_1;
+    }
+    if (roomId.startsWith('H') && roomId.length === 4) {
+        return GUILIN_SERVER_2;
+    }
+    
+    return GUILIN_SERVER_1;
+}
 
 async function getGuilinBuildings(accessToken) {
+    const headers = {
+        ...DEFAULT_HEADERS,
+        'Authorization': `bearer ${accessToken}`,
+        'Content-Type': 'multipart/form-data'
+    };
+    
+    const allBuildings = [];
+    
     try {
-        console.log('[Mock Guilin] 获取桂林校区楼栋列表');
+        const formData1 = new FormData();
+        formData1.append('areaId', 'glxq');
         
-        await new Promise(resolve => setTimeout(resolve, 400));
+        const response1 = await axios.post(`${GUILIN_SERVER_1}/v1/cgElec/loudong/query`, formData1, {
+            headers,
+            timeout: 10000
+        });
         
-        return mockDormitoryBuildings.filter(b => b.xiaoqu_id === 'glxq');
+        if (response1.data && response1.data.data) {
+            allBuildings.push(...response1.data.data);
+        }
     } catch (error) {
-        console.error('[Mock Guilin] 获取桂林校区楼栋失败:', error.message);
-        return [];
+        console.error('桂林校区一号服务器获取楼栋失败:', error.message);
+        allBuildings.push(...GUILIN_BUILDINGS_SERVER_1);
     }
+    
+    try {
+        const formData2 = new FormData();
+        formData2.append('areaId', 'glxq');
+        
+        const response2 = await axios.post(`${GUILIN_SERVER_2}/v1/cgElec/loudong/query`, formData2, {
+            headers,
+            timeout: 10000
+        });
+        
+        if (response2.data && response2.data.data) {
+            allBuildings.push(...response2.data.data);
+        }
+    } catch (error) {
+        console.error('桂林校区二号服务器获取楼栋失败:', error.message);
+        allBuildings.push(...GUILIN_BUILDINGS_SERVER_2);
+    }
+    
+    const uniqueBuildings = [];
+    const seenIds = new Set();
+    for (const building of allBuildings) {
+        if (!seenIds.has(building.loudong_id)) {
+            seenIds.add(building.loudong_id);
+            uniqueBuildings.push(building);
+        }
+    }
+    
+    return uniqueBuildings;
 }
 
 async function getGuilinRooms(accessToken, buildingId, page = 1, size = 100) {
+    const serverUrl = getServerForBuilding(buildingId);
+    const headers = {
+        ...DEFAULT_HEADERS,
+        'Authorization': `bearer ${accessToken}`,
+        'Content-Type': 'multipart/form-data'
+    };
+    
+    const formData = new FormData();
+    formData.append('loudong_id', buildingId);
+    formData.append('current', page);
+    formData.append('size', size);
+    
     try {
-        console.log(`[Mock Guilin] 获取桂林校区房间 - 楼栋: ${buildingId}, 页码: ${page}`);
+        const response = await axios.post(`${serverUrl}/v1/cgElec/room/query`, formData, {
+            headers,
+            timeout: 10000
+        });
         
-        await new Promise(resolve => setTimeout(resolve, 450));
-        
-        const building = mockDormitoryBuildings.find(b => b.loudong_id === buildingId && b.xiaoqu_id === 'glxq');
-        if (!building) {
-            return { data: [], total: 0, pages: 0, current: page };
+        if (response.data) {
+            return {
+                data: response.data.data || [],
+                total: response.data.total || 0,
+                pages: response.data.pages || 0,
+                current: response.data.current || page
+            };
         }
-        
-        const allRooms = generateMockRooms(buildingId, building.loudong_name);
-        const start = (page - 1) * size;
-        const end = start + size;
-        const paginatedRooms = allRooms.slice(start, end);
-        
-        return {
-            data: paginatedRooms,
-            total: allRooms.length,
-            pages: Math.ceil(allRooms.length / size),
-            current: page
-        };
     } catch (error) {
-        console.error('[Mock Guilin] 获取桂林校区房间失败:', error.message);
-        return { data: [], total: 0, pages: 0, current: page };
+        console.error(`桂林校区获取房间失败 (楼栋: ${buildingId}):`, error.message);
+        if (error.response) {
+            console.error('响应状态:', error.response.status);
+            console.error('响应数据:', JSON.stringify(error.response.data));
+        }
     }
+    
+    return { data: [], total: 0, pages: 0, current: page };
 }
 
 async function getGuilinAllRoomsByBuilding(accessToken, buildingId) {
-    try {
-        console.log(`[Mock Guilin] 获取桂林校区楼栋所有房间 - 楼栋: ${buildingId}`);
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        const building = mockDormitoryBuildings.find(b => b.loudong_id === buildingId && b.xiaoqu_id === 'glxq');
-        if (!building) {
-            return [];
+    const allRooms = [];
+    let page = 1;
+    const size = 100;
+    
+    while (true) {
+        const result = await getGuilinRooms(accessToken, buildingId, page, size);
+        if (result.data && result.data.length > 0) {
+            allRooms.push(...result.data);
         }
-        
-        return generateMockRooms(buildingId, building.loudong_name);
-    } catch (error) {
-        console.error('[Mock Guilin] 获取桂林校区楼栋所有房间失败:', error.message);
-        return [];
+        if (page >= result.pages || result.data.length === 0) {
+            break;
+        }
+        page++;
     }
+    
+    return allRooms;
 }
 
 async function getGuilinElectricity(accessToken, roomId) {
+    const serverUrl = getServerForRoom(roomId);
+    console.log(`[桂林校区电费查询] roomId: ${roomId}, serverUrl: ${serverUrl}`);
+    
+    const headers = {
+        ...DEFAULT_HEADERS,
+        'Authorization': `bearer ${accessToken}`,
+        'Content-Type': 'multipart/form-data'
+    };
+    
+    const formData = new FormData();
+    formData.append('room_id', roomId);
+    
     try {
-        console.log(`[Mock Guilin] 查询桂林校区电费余额 - 房间: ${roomId}`);
+        const response = await axios.post(`${serverUrl}/v1/cgElec/elec/query`, formData, {
+            headers,
+            timeout: 10000
+        });
         
-        await new Promise(resolve => setTimeout(resolve, 350));
+        console.log(`[桂林校区电费查询响应] ${JSON.stringify(response.data)}`);
         
-        return getMockElectricity(roomId);
+        if (response.data) {
+            return response.data.data || response.data || null;
+        }
     } catch (error) {
-        console.error('[Mock Guilin] 查询桂林校区电费余额失败:', error.message);
-        return null;
+        console.error('桂林校区获取电费余额失败:', error.message);
+        if (error.response) {
+            console.error('响应状态:', error.response.status);
+            console.error('响应数据:', JSON.stringify(error.response.data));
+        }
     }
+    
+    return null;
 }
 
 module.exports = {
-    GUILIN_SERVER_1: 'http://mock-server-1',
-    GUILIN_SERVER_2: 'http://mock-server-2',
-    GUILIN_BUILDING_SERVER_MAP: {},
-    getServerForBuilding: () => 'http://mock-server',
-    getServerForRoom: () => 'http://mock-server',
+    GUILIN_SERVER_1,
+    GUILIN_SERVER_2,
+    GUILIN_BUILDING_SERVER_MAP,
+    getServerForBuilding,
+    getServerForRoom,
     getGuilinBuildings,
     getGuilinRooms,
     getGuilinAllRoomsByBuilding,

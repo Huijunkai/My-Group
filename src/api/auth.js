@@ -1,39 +1,39 @@
-const { mockStudents } = require('../mockData');
+const { BASE_URL } = require('../utils/constants');
+const { createInstance } = require('../utils/request');
 
+/**
+ * 登录教务系统
+ * @param {string} username 
+ * @param {string} password 
+ */
 async function login(username, password) {
     try {
-        console.log(`[Mock Auth] 尝试登录: ${username}`);
+        const instance = createInstance();
         
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        const student = mockStudents.find(s => s.studentId === username && s.password === password);
-        
-        if (student) {
-            console.log(`[Mock Auth] 登录成功: ${student.name} (${student.studentId})`);
-            
-            const mockCookies = [
-                `JSESSIONID=MOCK_${Date.now()}_${Math.random().toString(36).substr(2, 9)}; Path=/`,
-                `studentId=${student.studentId}; Path=/`
-            ];
-            
+        // 1. 获取登录页面初始 Cookie
+        const initialResponse = await instance.get(`${BASE_URL}/xk/LoginToXk`);
+        const initialCookies = initialResponse.headers['set-cookie'] || [];
+
+        // 2. 构造登录数据
+        const encoded = Buffer.from(username).toString('base64') + '%%%' + Buffer.from(password).toString('base64');
+        const postData = new URLSearchParams();
+        postData.append('encoded', encoded);
+
+        // 3. 尝试登录
+        const loginInstance = createInstance(initialCookies, `${BASE_URL}/xk/LoginToXk`);
+        const loginResponse = await loginInstance.post(`${BASE_URL}/xk/LoginToXk`, postData);
+
+        if (loginResponse.status === 302 || (loginResponse.headers['location'] && loginResponse.headers['location'].includes('xsMain.jsp'))) {
+            const finalCookies = loginResponse.headers['set-cookie'] || initialCookies;
             return {
                 success: true,
-                cookies: mockCookies,
-                nextUrl: '/framework/xsMain.jsp',
-                studentInfo: student
+                cookies: finalCookies,
+                nextUrl: loginResponse.headers['location']
             };
         } else {
-            const existsStudent = mockStudents.find(s => s.studentId === username);
-            if (!existsStudent) {
-                console.log(`[Mock Auth] 用户不存在: ${username}`);
-                return { success: false, message: '该学号不存在' };
-            } else {
-                console.log(`[Mock Auth] 密码错误: ${username}`);
-                return { success: false, message: '密码错误，请重新输入' };
-            }
+            return { success: false, message: '登录失败，请检查学号密码' };
         }
     } catch (error) {
-        console.error('[Mock Auth] 登录异常:', error.message);
         return { success: false, message: error.message };
     }
 }
