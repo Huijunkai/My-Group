@@ -1,5 +1,5 @@
 const { Student, Course, Grade, Exam, Plan, Progress } = require('./models');
-const { sequelize } = require('./index');
+const { sequelize, checkHealth } = require('./index');
 const { 
     encryptStudentInfo, 
     encryptCourse, 
@@ -10,24 +10,51 @@ const {
     encrypt 
 } = require('../utils/encryption');
 
+const DB_MAX_RETRIES = 2;
+const DB_RETRY_DELAY = 2000;
+
+async function withDbRetry(fn, operationName) {
+    let lastError;
+    for (let attempt = 1; attempt <= DB_MAX_RETRIES; attempt++) {
+        try {
+            return await fn();
+        } catch (error) {
+            lastError = error;
+            const isRetryable = error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' ||
+                error.name === 'SequelizeConnectionError' || 
+                (error.original && error.original.code === 'PROTOCOL_CONNECTION_LOST');
+            
+            if (!isRetryable || attempt === DB_MAX_RETRIES) {
+                throw error;
+            }
+            
+            console.warn(`${operationName} 数据库操作失败 (第${attempt}次)，${DB_RETRY_DELAY}ms后重试...`);
+            await new Promise(resolve => setTimeout(resolve, DB_RETRY_DELAY));
+        }
+    }
+    throw lastError;
+}
+
 async function syncStudent(studentId, info) {
     if (!studentId || !info) return;
     
-    const existing = await Student.findByPk(studentId);
-    if (existing) {
-        console.log(`syncStudent: 学生 ${studentId} 已存在，跳过更新`);
-        return;
-    }
-    
-    const encryptedInfo = encryptStudentInfo(info);
-    
-    await Student.create({
-        studentId,
-        ...encryptedInfo,
-        lastSync: new Date()
-    });
-    
-    console.log(`syncStudent: 新增学生 ${studentId}`);
+    return withDbRetry(async () => {
+        const existing = await Student.findByPk(studentId);
+        if (existing) {
+            console.log(`syncStudent: 学生 ${studentId} 已存在，跳过更新`);
+            return;
+        }
+        
+        const encryptedInfo = encryptStudentInfo(info);
+        
+        await Student.create({
+            studentId,
+            ...encryptedInfo,
+            lastSync: new Date()
+        });
+        
+        console.log(`syncStudent: 新增学生 ${studentId}`);
+    }, 'syncStudent');
 }
 
 async function syncCourses(studentId, courses) {
@@ -103,7 +130,11 @@ async function syncCourses(studentId, courses) {
             }
 
             const dedupRows = Array.from(dedupMap.values());
-            await Course.bulkCreate(dedupRows);
+            
+            await withDbRetry(async () => {
+                await Course.bulkCreate(dedupRows);
+            }, `syncCourses (${sem})`);
+            
             console.log(`syncCourses: 新增学期 ${sem} 课程 ${dedupRows.length} 条`);
         }
     }

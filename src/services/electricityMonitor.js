@@ -1,6 +1,7 @@
 const xyyxt = require('../xyyxt');
 const pushService = require('./pushService');
 const { UserPushToken, ElectricityReminder } = require('../db/models');
+const { checkHealth } = require('../db');
 const { decrypt, encrypt } = require('../utils/encryption');
 
 class ElectricityMonitor {
@@ -28,6 +29,12 @@ class ElectricityMonitor {
 
   async checkAllElectricity() {
     try {
+      const isHealthy = await checkHealth();
+      if (!isHealthy) {
+        console.warn('数据库不可用，跳过本次电费检查');
+        return;
+      }
+
       console.log('开始检查所有用户电费');
       const settingsList = await ElectricityReminder.findAll({
         where: { enabled: true }
@@ -36,12 +43,19 @@ class ElectricityMonitor {
       console.log(`找到 ${settingsList.length} 个启用了电费提醒的用户`);
 
       for (const setting of settingsList) {
-        await this.checkElectricityForUser(setting);
+        try {
+          await this.checkElectricityForUser(setting);
+        } catch (userError) {
+          console.error(`检查用户 ${setting.studentId} 电费失败:`, userError.message);
+        }
       }
 
       console.log('电费检查完成');
     } catch (error) {
       console.error('电费监控检查失败:', error.message);
+      if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
+        console.warn('网络连接异常，将在下次定时任务重试');
+      }
     }
   }
 
@@ -152,7 +166,8 @@ class ElectricityMonitor {
       if (result.success) {
         console.log(`成功发送电费提醒给用户 ${studentId}`);
       } else {
-        console.error(`发送电费提醒失败:`, result.message);
+        console.error(`发送电费提醒失败 [${studentId}]: ${result.message}${result.code ? ' (code=' + result.code + ')' : ''}`);
+        console.error(`[电费推送诊断] Token长度=${userToken.pushToken.length} | Token前缀=${userToken.pushToken.substring(0, 15)}...`);
       }
     } catch (error) {
       console.error(`发送电费提醒失败:`, error.message);

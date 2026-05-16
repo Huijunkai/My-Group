@@ -8,6 +8,7 @@
     "express": "^5.2.1",
     "form-data": "^4.0.5",
     "iconv-lite": "^0.7.2",
+    "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.16.2",
     "node-cron": "^4.2.1",
     "node-fetch": "^2.7.0",
