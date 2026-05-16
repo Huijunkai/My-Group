@@ -397,7 +397,7 @@ async function notifyExamReminder(studentId, examInfo) {
 
         return await sendPushNotification(
             userToken.pushToken,
-            '考试提醒',
+            '⏰ 考试提醒',
             `${examInfo.courseName || '考试'} 将在${examInfo.reminderTime || '24小时后'}开始\n时间: ${examInfo.examTime || '-'}\n地点: ${examInfo.location || '-'}`,
             'exam_reminder',
             { studentId, courseName: examInfo.courseName, examTime: examInfo.examTime, location: examInfo.location, reminderType: examInfo.reminderTime }
@@ -422,9 +422,9 @@ async function notifyCourseChange(studentId, changeInfo) {
         }
 
         const typeLabels = {
-            new: '新增课程',
-            location_change: '教室变更',
-            cancelled: '课程取消'
+            new: '🆕 新增课程',
+            location_change: '📍 教室变更',
+            cancelled: '❌ 课程取消'
         };
 
         return await sendPushNotification(
@@ -458,7 +458,7 @@ async function notifyAnnouncement(title, keyword, url) {
         for (const user of allTokensResult) {
             const result = await sendPushNotification(
                 user.pushToken,
-                `公告: ${keyword || '重要'}`,
+                `📢 公告: ${keyword || '重要'}`,
                 `${title}${url ? '\n点击查看详情' : ''}`,
                 'announcement',
                 { keyword, url, title }
