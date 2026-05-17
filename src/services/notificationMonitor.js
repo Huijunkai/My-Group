@@ -6,6 +6,7 @@ const userGradeCache = new Map();
 const userExamCache = new Map();
 const userTimetableCache = new Map();
 const knownAnnouncementIds = new Set();
+const examReminderSent = new Map();
 
 const CHECK_INTERVAL = 30 * 60 * 1000;
 const ANNOUNCEMENT_CHECK_INTERVAL = 10 * 60 * 1000;
@@ -154,16 +155,21 @@ async function checkUpcomingExams(studentId, exams) {
             const timeDiff = examDate.getTime() - now.getTime();
             
             if (timeDiff > 0 && timeDiff <= oneDayMs) {
-                const hoursLeft = Math.floor(timeDiff / (60 * 60 * 1000));
+                const reminderKey = `${studentId}_${exam.courseName}_${exam.examTime}`;
                 
-                if (hoursLeft <= 24 && hoursLeft > 23) {
-                    await pushService.notifyExamReminder(studentId, {
-                        courseName: exam.courseName,
-                        examTime: exam.examTime,
-                        location: exam.location,
-                        reminderTime: '24小时后'
-                    });
+                if (examReminderSent.has(reminderKey)) {
+                    continue;
                 }
+                
+                await pushService.notifyExamReminder(studentId, {
+                    courseName: exam.courseName,
+                    examTime: exam.examTime,
+                    location: exam.location,
+                    reminderTime: '24小时后'
+                });
+                
+                examReminderSent.set(reminderKey, Date.now());
+                console.log(`[考前提醒] 已发送提醒: ${studentId} - ${exam.courseName}`);
             }
         } catch (e) {
             console.error('Error parsing exam date:', e);
@@ -277,12 +283,20 @@ async function checkAnnouncements() {
         if (announcements.length === 0) {
             return;
         }
+
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         
         for (const announcement of announcements) {
             const announcementId = announcement.url || announcement.title;
             
             if (!knownAnnouncementIds.has(announcementId)) {
                 knownAnnouncementIds.add(announcementId);
+                
+                if (announcement.date && announcement.date !== todayStr) {
+                    console.log(`NotificationMonitor: 跳过非当日公告 (${announcement.date}): ${announcement.title}`);
+                    continue;
+                }
                 
                 for (const keyword of KEYWORDS) {
                     if (announcement.title.includes(keyword)) {

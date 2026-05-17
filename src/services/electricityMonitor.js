@@ -8,6 +8,7 @@ class ElectricityMonitor {
   constructor() {
     this.interval = null;
     this.accessTokens = new Map();
+    this.notifiedUsers = new Map();
   }
 
   start() {
@@ -130,7 +131,26 @@ class ElectricityMonitor {
       console.log(`用户 ${studentId} 电费余额: ${balance}元, 阈值: ${threshold}元`);
 
       if (balance < threshold) {
+        const notifiedKey = `${studentId}_${Math.floor(balance)}`;
+        const lastNotified = this.notifiedUsers.get(notifiedKey);
+        const now = Date.now();
+        const oneDayMs = 24 * 60 * 60 * 1000;
+
+        if (lastNotified && (now - lastNotified) < oneDayMs) {
+          console.log(`用户 ${studentId} 电费不足已通知过（余额${balance}元），24小时内不重复通知`);
+          return;
+        }
+
         await this.sendElectricityReminder(studentId, balance, threshold);
+        this.notifiedUsers.set(notifiedKey, now);
+      } else {
+        const keysToRemove = [];
+        for (const [key] of this.notifiedUsers) {
+          if (key.startsWith(`${studentId}_`)) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(k => this.notifiedUsers.delete(k));
       }
     } catch (error) {
       console.error(`检查用户 ${setting.studentId} 电费失败:`, error.message);
