@@ -34,7 +34,8 @@ async function notifyNewGradeRealtime(studentId, gradeInfo) {
             score: decryptedScore,
             credit: gradeInfo.credit,
             semester: gradeInfo.semester
-        }
+        },
+        { visibilityType: 1, badge: { addNum: 1 } }
     );
 }
 
@@ -57,7 +58,8 @@ async function notifyNewExamRealtime(studentId, examInfo) {
             courseName: decryptedCourseName,
             examTime: examInfo.examTime,
             location: decryptedLocation
-        }
+        },
+        { visibilityType: 1, badge: { addNum: 1 } }
     );
 }
 
@@ -76,7 +78,8 @@ async function notifyCourseChangeRealtime(studentId, changeInfo) {
         {
             changeType: changeInfo.type,
             courseName: changeInfo.courseName
-        }
+        },
+        { visibilityType: 1, badge: { addNum: 1 } }
     );
 }
 

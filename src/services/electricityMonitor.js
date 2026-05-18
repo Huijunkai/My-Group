@@ -180,7 +180,8 @@ class ElectricityMonitor {
           balance: numericBalance,
           threshold: numericThreshold,
           timestamp: Date.now()
-        }
+        },
+        { visibilityType: 1, badge: { addNum: 1 } }
       );
 
       if (result.success) {

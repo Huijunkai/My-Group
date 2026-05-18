@@ -129,14 +129,17 @@ function getCategoryByType(type) {
     if (selfCategoryEnabled === false) {
         return MESSAGE_CATEGORY.MARKETING;
     }
-    const serviceTypes = ['new_grade', 'new_exam', 'exam_reminder', 'course_change', 'electricity_reminder'];
-    if (serviceTypes.includes(type)) {
-        return MESSAGE_CATEGORY.ACCOUNT;
-    }
-    if (type === 'announcement') {
-        return MESSAGE_CATEGORY.MARKETING;
-    }
-    return MESSAGE_CATEGORY.ACCOUNT;
+    const categoryMap = {
+        new_grade: MESSAGE_CATEGORY.WORK,
+        new_exam: MESSAGE_CATEGORY.WORK,
+        exam_reminder: MESSAGE_CATEGORY.WORK,
+        course_change: MESSAGE_CATEGORY.WORK,
+        course_reminder: MESSAGE_CATEGORY.WORK,
+        electricity_reminder: MESSAGE_CATEGORY.DEVICE_REMINDER,
+        electricity_low: MESSAGE_CATEGORY.DEVICE_REMINDER,
+        announcement: MESSAGE_CATEGORY.MARKETING
+    };
+    return categoryMap[type] || MESSAGE_CATEGORY.WORK;
 }
 
 async function sendPushNotification(pushToken, title, content, type, extraData, options = {}) {
@@ -182,10 +185,21 @@ async function sendPushNotification(pushToken, title, content, type, extraData, 
                     actionType: actionType,
                     data: extraData || {}
                 },
-                foregroundShow: foregroundShow
+                foregroundShow: foregroundShow,
+                visibilityType: options.visibilityType !== undefined ? options.visibilityType : 1,
+                badge: options.badge !== undefined ? options.badge : { addNum: 1 }
             };
             if (options.notifyId !== undefined) {
                 notification.notifyId = options.notifyId;
+            }
+            if (options.sound !== undefined) {
+                notification.sound = options.sound;
+            }
+            if (options.image !== undefined) {
+                notification.image = options.image;
+            }
+            if (options.style !== undefined) {
+                notification.style = options.style;
             }
             return {
                 payload: { notification },
@@ -233,8 +247,10 @@ async function sendPushNotification(pushToken, title, content, type, extraData, 
                 console.error(`[华为推送诊断]   请检查 private.json 配置是否正确`);
             }
             if (errorCode === '80100003') {
-                console.error(`[华为推送诊断] ⚠️ 80100003 = category无效`);
+                console.error(`[华为推送诊断] ⚠️ 80100003 = category无效或未申请自分类权益`);
                 console.error(`[华为推送诊断]   有效值: IM, VOIP, MISS_CALL, SUBSCRIPTION, TRAVEL, HEALTH, WORK, ACCOUNT, EXPRESS, FINANCE, DEVICE_REMINDER, MAIL, MARKETING`);
+                console.error(`[华为推送诊断]   需在AppGallery Connect中申请"通知消息自分类权益"才能使用非MARKETING类别`);
+                console.error(`[华为推送诊断]   未申请权益时，所有消息默认为MARKETING(静默通知，仅通知中心展示)`);
             }
             if (errorCode === '80200001') {
                 console.error(`[华为推送诊断] ⚠️ 80200001 = 认证失败`);
@@ -348,7 +364,8 @@ async function notifyNewGrade(studentId, gradeInfo) {
             '新成绩发布',
             `${gradeInfo.courseName || '课程'}: ${gradeInfo.score || '未知'}分 (${gradeInfo.credit || '?'}学分)`,
             'new_grade',
-            { studentId, courseName: gradeInfo.courseName, score: gradeInfo.score, semester: gradeInfo.semester }
+            { studentId, courseName: gradeInfo.courseName, score: gradeInfo.score, semester: gradeInfo.semester },
+            { visibilityType: 1, badge: { addNum: 1 } }
         );
     } catch (error) {
         console.error(`[成绩通知] 发送失败 (${studentId}):`, error.message);
@@ -374,7 +391,8 @@ async function notifyNewExam(studentId, examInfo) {
             '新考试安排',
             `${examInfo.courseName || '考试'}: ${examInfo.examTime || '时间待定'} @ ${examInfo.location || '地点待定'}`,
             'new_exam',
-            { studentId, courseName: examInfo.courseName, examTime: examInfo.examTime, location: examInfo.location }
+            { studentId, courseName: examInfo.courseName, examTime: examInfo.examTime, location: examInfo.location },
+            { visibilityType: 1, badge: { addNum: 1 } }
         );
     } catch (error) {
         console.error(`[考试通知] 发送失败 (${studentId}):`, error.message);
@@ -400,7 +418,8 @@ async function notifyExamReminder(studentId, examInfo) {
             '⏰ 考试提醒',
             `${examInfo.courseName || '考试'} 将在${examInfo.reminderTime || '24小时后'}开始\n时间: ${examInfo.examTime || '-'}\n地点: ${examInfo.location || '-'}`,
             'exam_reminder',
-            { studentId, courseName: examInfo.courseName, examTime: examInfo.examTime, location: examInfo.location, reminderType: examInfo.reminderTime }
+            { studentId, courseName: examInfo.courseName, examTime: examInfo.examTime, location: examInfo.location, reminderType: examInfo.reminderTime },
+            { visibilityType: 1, badge: { addNum: 1 } }
         );
     } catch (error) {
         console.error(`[考试提醒] 发送失败 (${studentId}):`, error.message);
@@ -432,7 +451,8 @@ async function notifyCourseChange(studentId, changeInfo) {
             typeLabels[changeInfo.type] || '课表变动',
             changeInfo.message || '课表有变动',
             'course_change',
-            { studentId, type: changeInfo.type, courseName: changeInfo.courseName, message: changeInfo.message }
+            { studentId, type: changeInfo.type, courseName: changeInfo.courseName, message: changeInfo.message },
+            { visibilityType: 1, badge: { addNum: 1 } }
         );
     } catch (error) {
         console.error(`[课变通知] 发送失败 (${studentId}):`, error.message);
@@ -461,7 +481,8 @@ async function notifyAnnouncement(title, keyword, url) {
                 `📢 公告: ${keyword || '重要'}`,
                 `${title}${url ? '\n点击查看详情' : ''}`,
                 'announcement',
-                { keyword, url, title }
+                { keyword, url, title },
+                { visibilityType: 1, badge: { addNum: 1 } }
             );
 
             if (result.success) {
@@ -488,6 +509,45 @@ async function notifyAnnouncement(title, keyword, url) {
     }
 }
 
+async function notifyCourseReminder(studentId, reminderInfo) {
+    const { UserPushToken } = require('../db/models');
+
+    try {
+        const userToken = await UserPushToken.findOne({
+            where: { studentId, isActive: true }
+        });
+
+        if (!userToken) {
+            console.log(`[课程提醒] 用户 ${studentId} 未注册推送Token`);
+            return { success: false, message: '未注册推送' };
+        }
+
+        const typeLabels = {
+            before_class: '📚 课前提醒',
+            tomorrow: '📅 明日课程',
+            morning: '☀️ 今日课程'
+        };
+
+        return await sendPushNotification(
+            userToken.pushToken,
+            typeLabels[reminderInfo.type] || '课程提醒',
+            reminderInfo.message || '您有课程即将开始',
+            'course_reminder',
+            {
+                studentId,
+                type: reminderInfo.type,
+                courseName: reminderInfo.courseName,
+                location: reminderInfo.location,
+                startTime: reminderInfo.startTime
+            },
+            { visibilityType: 1, badge: { addNum: 1 } }
+        );
+    } catch (error) {
+        console.error(`[课程提醒] 推送失败 (${studentId}):`, error.message);
+        return { success: false, message: error.message };
+    }
+}
+
 module.exports = {
     sendPushNotification,
     sendBackgroundMessage,
@@ -495,6 +555,7 @@ module.exports = {
     notifyNewExam,
     notifyExamReminder,
     notifyCourseChange,
+    notifyCourseReminder,
     notifyAnnouncement,
     getAccessToken,
     validateToken,

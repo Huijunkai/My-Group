@@ -14,6 +14,7 @@ const xyyxt = require('./src/xyyxt');
 const pushService = require('./src/services/pushService');
 const notificationMonitor = require('./src/services/notificationMonitor');
 const electricityMonitor = require('./src/services/electricityMonitor');
+const courseReminderPush = require('./src/services/courseReminderPush');
 const { initDatabase, checkHealth } = require('./src/db');
 const { syncStudent, syncCourses, syncGrades, syncExams, syncPlans, syncProgress } = require('./src/db/sync');
 const { getEncryptionKeyBase64, getIvBase64 } = require('./src/utils/encryption');
@@ -414,7 +415,9 @@ app.post('/api/push/test', authenticate, async (req, res) => {
             userToken.pushToken,
             title || '测试通知',
             content || '这是一条测试消息',
-            type || 'course_change'
+            type || 'course_change',
+            {},
+            { visibilityType: 1, badge: { addNum: 1 } }
         );
 
         res.json(result);
@@ -491,6 +494,38 @@ app.post('/api/push/cleanup', async (_req, res) => {
     } catch (error) {
         console.error('Push cleanup error:', error);
         res.status(500).json({ success: false, message: '清理失败' });
+    }
+});
+
+app.get('/api/course-reminder/status', (_req, res) => {
+    res.json({
+        success: true,
+        data: courseReminderPush.getStatus()
+    });
+});
+
+app.post('/api/course-reminder/config', (req, res) => {
+    const { beforeClassMinutes, tomorrowHour, tomorrowMinute, enabled } = req.body;
+    courseReminderPush.updateConfig({ beforeClassMinutes, tomorrowHour, tomorrowMinute, enabled });
+    res.json({
+        success: true,
+        message: '课程提醒配置已更新',
+        data: courseReminderPush.getStatus()
+    });
+});
+
+app.post('/api/course-reminder/test', async (req, res) => {
+    try {
+        const { type } = req.body;
+        if (type === 'tomorrow') {
+            await courseReminderPush.sendTomorrowCourseReminders();
+        } else {
+            await courseReminderPush.sendBeforeClassReminders();
+        }
+        res.json({ success: true, message: `课程提醒测试已触发 (${type || 'before_class'})` });
+    } catch (error) {
+        console.error('课程提醒测试失败:', error);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 
@@ -1392,6 +1427,13 @@ async function startServer() {
                     console.log('Electricity monitoring service started');
                 } catch (e) {
                     console.warn('启动电费监控服务失败:', e.message);
+                }
+
+                try {
+                    courseReminderPush.start();
+                    console.log('Course reminder push service started');
+                } catch (e) {
+                    console.warn('启动课程提醒推送服务失败:', e.message);
                 }
             }
         });
