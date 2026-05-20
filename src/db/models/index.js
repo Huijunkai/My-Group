@@ -9,7 +9,8 @@ const Student = sequelize.define('Student', {
     className: DataTypes.STRING(500),
     major: DataTypes.STRING(500),
     college: DataTypes.STRING(500),
-    lastSync: DataTypes.DATE
+    lastSync: DataTypes.DATE,
+    semesterStartDate: DataTypes.STRING(50)
 }, {
     tableName: 'Student',
     timestamps: false
@@ -124,6 +125,24 @@ const UserPushToken = sequelize.define('UserPushToken', {
     timestamps: false
 });
 
+const CourseReminderConfig = sequelize.define('CourseReminderConfig', {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    studentId: { type: DataTypes.STRING(100), unique: true },
+    enabled: { type: DataTypes.BOOLEAN, defaultValue: true },
+    semesterStartDate: { type: DataTypes.STRING(50), allowNull: true },
+    currentWeek: { type: DataTypes.INTEGER, defaultValue: 1 },
+    beforeClassMinutes: { type: DataTypes.INTEGER, defaultValue: 15 },
+    remindBeforeClass: { type: DataTypes.BOOLEAN, defaultValue: true },
+    remindTomorrowCourse: { type: DataTypes.BOOLEAN, defaultValue: true },
+    tomorrowHour: { type: DataTypes.INTEGER, defaultValue: 21 },
+    tomorrowMinute: { type: DataTypes.INTEGER, defaultValue: 0 },
+    createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+    updatedAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+}, {
+    tableName: 'CourseReminderConfig',
+    timestamps: false
+});
+
 module.exports = {
     Student,
     Course,
@@ -132,5 +151,6 @@ module.exports = {
     Plan,
     Progress,
     ElectricityReminder,
-    UserPushToken
+    UserPushToken,
+    CourseReminderConfig
 };

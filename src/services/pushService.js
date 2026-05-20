@@ -415,7 +415,7 @@ async function notifyExamReminder(studentId, examInfo) {
 
         return await sendPushNotification(
             userToken.pushToken,
-            '⏰ 考试提醒',
+            '考试提醒',
             `${examInfo.courseName || '考试'} 将在${examInfo.reminderTime || '24小时后'}开始\n时间: ${examInfo.examTime || '-'}\n地点: ${examInfo.location || '-'}`,
             'exam_reminder',
             { studentId, courseName: examInfo.courseName, examTime: examInfo.examTime, location: examInfo.location, reminderType: examInfo.reminderTime },
@@ -441,9 +441,9 @@ async function notifyCourseChange(studentId, changeInfo) {
         }
 
         const typeLabels = {
-            new: '🆕 新增课程',
-            location_change: '📍 教室变更',
-            cancelled: '❌ 课程取消'
+            new: '新增课程',
+            location_change: '教室变更',
+            cancelled: '课程取消'
         };
 
         return await sendPushNotification(
@@ -478,7 +478,7 @@ async function notifyAnnouncement(title, keyword, url) {
         for (const user of allTokensResult) {
             const result = await sendPushNotification(
                 user.pushToken,
-                `📢 公告: ${keyword || '重要'}`,
+                `公告: ${keyword || '重要'}`,
                 `${title}${url ? '\n点击查看详情' : ''}`,
                 'announcement',
                 { keyword, url, title },
@@ -509,31 +509,35 @@ async function notifyAnnouncement(title, keyword, url) {
     }
 }
 
-async function notifyCourseReminder(studentId, reminderInfo) {
-    const { UserPushToken } = require('../db/models');
-
+async function notifyCourseReminder(studentId, reminderInfo, pushToken = null) {
     try {
-        const userToken = await UserPushToken.findOne({
-            where: { studentId, isActive: true }
-        });
-
+        let userToken = pushToken;
+        
         if (!userToken) {
-            console.log(`[课程提醒] 用户 ${studentId} 未注册推送Token`);
-            return { success: false, message: '未注册推送' };
+            const { UserPushToken } = require('../db/models');
+            const tokenRecord = await UserPushToken.findOne({
+                where: { studentId, isActive: true }
+            });
+            if (!tokenRecord) {
+                console.log(`[课程提醒] 用户 ${studentId} 未注册推送Token`);
+                return { success: false, message: '未注册推送' };
+            }
+            userToken = tokenRecord.pushToken;
         }
 
         const typeLabels = {
-            before_class: '📚 课前提醒',
-            tomorrow: '📅 明日课程',
-            morning: '☀️ 今日课程'
+            before_class: '课前提醒',
+            tomorrow: '明日课程',
+            morning: '今日课程'
         };
 
         return await sendPushNotification(
-            userToken.pushToken,
+            userToken,
             typeLabels[reminderInfo.type] || '课程提醒',
             reminderInfo.message || '您有课程即将开始',
             'course_reminder',
             {
+                messageType: 'course_reminder',
                 studentId,
                 type: reminderInfo.type,
                 courseName: reminderInfo.courseName,

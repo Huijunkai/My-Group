@@ -35,13 +35,20 @@ async function withDbRetry(fn, operationName) {
     throw lastError;
 }
 
-async function syncStudent(studentId, info) {
+async function syncStudent(studentId, info, semesterStartDate = null) {
     if (!studentId || !info) return;
     
     return withDbRetry(async () => {
         const existing = await Student.findByPk(studentId);
+        const hasSemesterDate = semesterStartDate && semesterStartDate.trim && semesterStartDate.trim().length > 0;
+        
         if (existing) {
-            console.log(`syncStudent: 学生 ${studentId} 已存在，跳过更新`);
+            const updateData = { lastSync: new Date() };
+            if (hasSemesterDate) {
+                updateData.semesterStartDate = semesterStartDate.trim();
+            }
+            await Student.update(updateData, { where: { studentId } });
+            console.log(`syncStudent: 更新学生 ${studentId} lastSync${hasSemesterDate ? ` 和 semesterStartDate=${semesterStartDate.trim()}` : ' (无开学时间)'}`);
             return;
         }
         
@@ -50,10 +57,11 @@ async function syncStudent(studentId, info) {
         await Student.create({
             studentId,
             ...encryptedInfo,
-            lastSync: new Date()
+            lastSync: new Date(),
+            semesterStartDate: hasSemesterDate ? semesterStartDate.trim() : null
         });
         
-        console.log(`syncStudent: 新增学生 ${studentId}`);
+        console.log(`syncStudent: 新增学生 ${studentId}${hasSemesterDate ? ` (学期开始: ${semesterStartDate.trim()})` : ' (无开学时间)'}`);
     }, 'syncStudent');
 }
 

@@ -25,6 +25,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.use((req, res, next) => {
+    if (req.path.includes('course-reminder') || req.path.includes('reminder')) {
+        console.log(`[REQUEST] ${req.method} ${req.path} Body: ${JSON.stringify(req.body)}`);
+    }
+    next();
+});
+
 const PORT = process.env.PORT || 3000;
 const mockMode = isMockMode();
 
@@ -118,14 +125,19 @@ app.get('/api/encryption/key', (_req, res) => {
 });
 
 app.post('/api/sync', async (req, res) => {
-    const { username, password, semester } = req.body;
+    const { username, password, semester, semesterStartDate } = req.body;
 
     if (!username || !password) {
         return res.status(400).json({ success: false, message: '请提供学号和密码' });
     }
 
     try {
-        console.log(`正在获取学生数据: ${username}${semester ? ` (学期: ${semester})` : ''}`);
+        console.log(`[SYNC] 正在获取学生数据: ${username}`);
+        console.log(`[SYNC] 请求参数: semester=${semester || '无'}, semesterStartDate=${semesterStartDate || '无'}`);
+        console.log(`[SYNC] semesterStartDate 类型: ${typeof semesterStartDate}, 值: "${semesterStartDate}"`);
+        
+        const hasSemesterDate = semesterStartDate && typeof semesterStartDate === 'string' && semesterStartDate.trim().length > 0;
+        console.log(`[SYNC] 是否有有效开学时间: ${hasSemesterDate}`);
         const loginResult = await login(username, password);
 
         if (!loginResult.success) {
@@ -208,7 +220,7 @@ app.post('/api/sync', async (req, res) => {
                 }
                 
                 await Promise.all([
-                    syncStudent(username, info),
+                    syncStudent(username, info, semesterStartDate),
                     syncCourses(username, timetable || []),
                     syncPlans(username, plans || {}),
                     syncProgress(username, progress || [])
@@ -506,17 +518,118 @@ app.get('/api/course-reminder/status', (_req, res) => {
 
 app.post('/api/course-reminder/config', (req, res) => {
     const { beforeClassMinutes, tomorrowHour, tomorrowMinute, enabled } = req.body;
+    console.log(`[API] 收到课程提醒配置更新请求: beforeClassMinutes=${beforeClassMinutes}, tomorrowHour=${tomorrowHour}, tomorrowMinute=${tomorrowMinute}, enabled=${enabled}`);
     courseReminderPush.updateConfig({ beforeClassMinutes, tomorrowHour, tomorrowMinute, enabled });
+    const status = courseReminderPush.getStatus();
+    console.log(`[API] 课程提醒配置更新完成: ${JSON.stringify(status)}`);
     res.json({
         success: true,
         message: '课程提醒配置已更新',
-        data: courseReminderPush.getStatus()
+        data: status
     });
+});
+
+app.post('/api/course-reminder/user-config', async (req, res) => {
+    try {
+        const { studentId, semesterStartDate, beforeClassMinutes, tomorrowHour, tomorrowMinute, enabled, remindBeforeClass, remindTomorrowCourse } = req.body;
+        
+        console.log(`[API] 收到用户配置更新请求: studentId=${studentId}, semesterStartDate=${semesterStartDate}, beforeClassMinutes=${beforeClassMinutes}, tomorrowHour=${tomorrowHour}, tomorrowMinute=${tomorrowMinute}, enabled=${enabled}, remindBeforeClass=${remindBeforeClass}, remindTomorrowCourse=${remindTomorrowCourse}`);
+        
+        if (!studentId) {
+            console.error('[API] 用户配置更新失败: 缺少 studentId');
+            return res.status(400).json({ success: false, message: '缺少 studentId' });
+        }
+        
+        const updates = {};
+        
+        if (semesterStartDate !== undefined && semesterStartDate !== null && semesterStartDate !== '') {
+            updates.semesterStartDate = semesterStartDate;
+            const startDate = new Date(semesterStartDate);
+            const now = new Date();
+            const diffTime = now.getTime() - startDate.getTime();
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            updates.currentWeek = Math.max(1, Math.min(25, Math.floor(diffDays / 7) + 1));
+            console.log(`[API] 计算当前周: ${updates.currentWeek} (开学: ${semesterStartDate})`);
+        }
+        
+        if (beforeClassMinutes !== undefined) updates.beforeClassMinutes = beforeClassMinutes;
+        if (tomorrowHour !== undefined) updates.tomorrowHour = tomorrowHour;
+        if (tomorrowMinute !== undefined) updates.tomorrowMinute = tomorrowMinute;
+        if (enabled !== undefined) updates.enabled = enabled;
+        if (remindBeforeClass !== undefined) updates.remindBeforeClass = remindBeforeClass;
+        if (remindTomorrowCourse !== undefined) updates.remindTomorrowCourse = remindTomorrowCourse;
+        
+        console.log(`[API] 准备更新的字段: ${JSON.stringify(updates)}`);
+        
+        const config = await courseReminderPush.updateUserConfig(studentId, updates);
+        
+        console.log(`[API] 更新后的配置: beforeClassMinutes=${config.beforeClassMinutes}, tomorrowHour=${config.tomorrowHour}, tomorrowMinute=${config.tomorrowMinute}`);
+        
+        res.json({
+            success: true,
+            message: '用户配置已更新',
+            data: {
+                studentId: config.studentId,
+                semesterStartDate: config.semesterStartDate,
+                currentWeek: config.currentWeek,
+                beforeClassMinutes: config.beforeClassMinutes,
+                tomorrowTime: `${config.tomorrowHour}:${String(config.tomorrowMinute).padStart(2, '0')}`,
+                tomorrowHour: config.tomorrowHour,
+                tomorrowMinute: config.tomorrowMinute,
+                enabled: config.enabled,
+                remindBeforeClass: config.remindBeforeClass,
+                remindTomorrowCourse: config.remindTomorrowCourse,
+                beforeClassTimeRange: `课前${config.beforeClassMinutes}分钟`,
+                summary: {
+                    isEnabled: config.enabled ? '已启用' : '已禁用',
+                    beforeClassStatus: config.remindBeforeClass ? `课前${config.beforeClassMinutes}分钟提醒` : '课前提醒已关闭',
+                    tomorrowStatus: config.remindTomorrowCourse ? `每日${config.tomorrowHour}:${String(config.tomorrowMinute).padStart(2, '0')}明日提醒` : '明日提醒已关闭'
+                }
+            }
+        });
+    } catch (error) {
+        console.error('[API] 用户配置更新失败:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+app.get('/api/course-reminder/user-config/:studentId', async (req, res) => {
+    try {
+        const { studentId } = req.params;
+        const config = await courseReminderPush.getOrCreateUserConfig(studentId);
+        
+        res.json({
+            success: true,
+            data: {
+                studentId: config.studentId,
+                semesterStartDate: config.semesterStartDate,
+                currentWeek: config.currentWeek,
+                beforeClassMinutes: config.beforeClassMinutes,
+                tomorrowTime: `${config.tomorrowHour}:${String(config.tomorrowMinute).padStart(2, '0')}`,
+                tomorrowHour: config.tomorrowHour,
+                tomorrowMinute: config.tomorrowMinute,
+                enabled: config.enabled,
+                remindBeforeClass: config.remindBeforeClass,
+                remindTomorrowCourse: config.remindTomorrowCourse,
+                beforeClassTimeRange: `课前${config.beforeClassMinutes}分钟`,
+                summary: {
+                    isEnabled: config.enabled ? '已启用' : '已禁用',
+                    beforeClassStatus: config.remindBeforeClass ? `课前${config.beforeClassMinutes}分钟提醒` : '课前提醒已关闭',
+                    tomorrowStatus: config.remindTomorrowCourse ? `每日${config.tomorrowHour}:${String(config.tomorrowMinute).padStart(2, '0')}明日提醒` : '明日提醒已关闭'
+                }
+            }
+        });
+    } catch (error) {
+        console.error('[API] 获取用户配置失败:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 app.post('/api/course-reminder/test', async (req, res) => {
     try {
         const { type } = req.body;
+        console.log(`[API] 收到课程提醒测试请求, type=${type || 'before_class'}`);
+        
         if (type === 'tomorrow') {
             await courseReminderPush.sendTomorrowCourseReminders();
         } else {
@@ -524,7 +637,7 @@ app.post('/api/course-reminder/test', async (req, res) => {
         }
         res.json({ success: true, message: `课程提醒测试已触发 (${type || 'before_class'})` });
     } catch (error) {
-        console.error('课程提醒测试失败:', error);
+        console.error('[API] 课程提醒测试失败:', error.message, error.stack);
         res.status(500).json({ success: false, message: error.message });
     }
 });
@@ -1430,10 +1543,11 @@ async function startServer() {
                 }
 
                 try {
+                    console.log('[服务器] 启动课程提醒推送服务...');
                     courseReminderPush.start();
-                    console.log('Course reminder push service started');
+                    console.log('[服务器] 课程提醒推送服务启动完成');
                 } catch (e) {
-                    console.warn('启动课程提醒推送服务失败:', e.message);
+                    console.error('[服务器] 启动课程提醒推送服务失败:', e.message, e.stack);
                 }
             }
         });
