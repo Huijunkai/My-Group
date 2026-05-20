@@ -15,6 +15,7 @@ const pushService = require('./src/services/pushService');
 const notificationMonitor = require('./src/services/notificationMonitor');
 const electricityMonitor = require('./src/services/electricityMonitor');
 const courseReminderPush = require('./src/services/courseReminderPush');
+const timetableSync = require('./src/services/timetableSync');
 const { initDatabase, checkHealth } = require('./src/db');
 const { syncStudent, syncCourses, syncGrades, syncExams, syncPlans, syncProgress } = require('./src/db/sync');
 const { getEncryptionKeyBase64, getIvBase64 } = require('./src/utils/encryption');
@@ -237,6 +238,8 @@ app.post('/api/sync', async (req, res) => {
             lastSync: Date.now()
         });
 
+        timetableSync.saveUserCredentials(username, username, password, cookies);
+
         const jwtToken = generateToken({
             username: username,
             studentId: info.studentId || username
@@ -286,6 +289,132 @@ app.get('/api/semester/latest', async (_req, res) => {
             semester: new Date().getFullYear() + '-' + (new Date().getMonth() >= 8 ? '1' : '2')
         }
     });
+});
+
+app.post('/api/timetable/sync', authenticate, async (req, res) => {
+    try {
+        const studentId = req.user.username;
+        console.log(`[手动同步] 用户 ${studentId} 请求手动同步课表`);
+        
+        const credentials = timetableSync.userCredentials?.get(studentId);
+        
+        if (!credentials) {
+            const student = await Student.findByPk(studentId);
+            if (student) {
+                console.log(`[手动同步] 用户 ${studentId} 在数据库中有记录，尝试从数据库获取信息`);
+            }
+            
+            return res.json({
+                success: false,
+                message: '未保存登录凭据，请先在前端登录并刷新课表'
+            });
+        }
+        
+        const result = await timetableSync.syncUserTimetable(studentId);
+        
+        res.json({
+            success: result.success,
+            message: result.success ? '课表同步成功' : (result.message || '课表同步失败'),
+            changes: result.changes || 0
+        });
+    } catch (error) {
+        console.error('[手动同步] 同步失败:', error.message);
+        res.status(500).json({
+            success: false,
+            message: '课表同步失败: ' + error.message
+        });
+    }
+});
+
+app.get('/api/timetable/sync/status', authenticate, async (req, res) => {
+    try {
+        const status = timetableSync.getSyncStatus();
+        res.json({
+            success: true,
+            data: status
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: '获取同步状态失败: ' + error.message
+        });
+    }
+});
+
+app.post('/api/timetable/cleanup', authenticate, async (req, res) => {
+    try {
+        const studentId = req.user.username;
+        console.log(`[清理重复] 用户 ${studentId} 请求清理重复课程记录`);
+        
+        const { decrypt, encrypt } = require('./src/utils/encryption');
+        
+        const allCourses = await Course.findAll({
+            where: { studentId }
+        });
+        
+        console.log(`[清理重复] 找到 ${allCourses.length} 条课程记录`);
+        
+        const courseMap = new Map();
+        allCourses.forEach(course => {
+            const decryptedName = decrypt(course.name) || course.name;
+            const key = `${decryptedName}_${course.dayOfWeek}_${course.period}`;
+            
+            if (!courseMap.has(key)) {
+                courseMap.set(key, []);
+            }
+            courseMap.get(key).push(course);
+        });
+        
+        let deletedCount = 0;
+        let updatedCount = 0;
+        
+        for (const [key, courses] of courseMap) {
+            if (courses.length > 1) {
+                console.log(`[清理重复] 发现重复记录: ${key}, 数量: ${courses.length}`);
+                
+                const allWeeks = new Set();
+                courses.forEach(c => {
+                    const decryptedWeeks = decrypt(c.weeks) || '';
+                    if (decryptedWeeks) {
+                        decryptedWeeks.split(',').forEach(w => {
+                            const week = parseInt(w.trim());
+                            if (!isNaN(week)) allWeeks.add(week);
+                        });
+                    }
+                    if (c.week) allWeeks.add(c.week);
+                });
+                
+                const mergedWeeks = Array.from(allWeeks).sort((a, b) => a - b).join(',');
+                const primary = courses[0];
+                
+                await primary.update({
+                    weeks: mergedWeeks ? encrypt(mergedWeeks) : null,
+                    week: Array.from(allWeeks)[0] || primary.week
+                });
+                updatedCount++;
+                
+                for (let i = 1; i < courses.length; i++) {
+                    await courses[i].destroy();
+                    deletedCount++;
+                }
+            }
+        }
+        
+        console.log(`[清理重复] 清理完成 - 更新:${updatedCount}, 删除:${deletedCount}`);
+        
+        res.json({
+            success: true,
+            message: `清理完成，删除了 ${deletedCount} 条重复记录，更新了 ${updatedCount} 条记录`,
+            deleted: deletedCount,
+            updated: updatedCount
+        });
+    } catch (error) {
+        console.error('[清理重复] 清理失败:', error.message);
+        res.status(500).json({
+            success: false,
+            message: '清理失败: ' + error.message
+        });
+    }
 });
 
 app.post('/api/auth/debug-token', async (req, res) => {
@@ -1548,6 +1677,14 @@ async function startServer() {
                     console.log('[服务器] 课程提醒推送服务启动完成');
                 } catch (e) {
                     console.error('[服务器] 启动课程提醒推送服务失败:', e.message, e.stack);
+                }
+
+                try {
+                    console.log('[服务器] 启动课表自动同步服务...');
+                    timetableSync.startTimetableSync();
+                    console.log('[服务器] 课表自动同步服务启动完成');
+                } catch (e) {
+                    console.error('[服务器] 启动课表自动同步服务失败:', e.message, e.stack);
                 }
             }
         });

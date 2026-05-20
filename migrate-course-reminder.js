@@ -40,48 +40,58 @@ async function migrate() {
         
         console.log('✓ 成功创建 CourseReminderConfig 表');
         
-        try {
-            await sequelize.getQueryInterface().addColumn('Student', 'semesterStartDate', {
-                type: DataTypes.STRING(50),
-                allowNull: true
-            });
-            console.log('✓ 成功添加 Student.semesterStartDate 字段');
-        } catch (e) {
-            if (e.message.includes('Duplicate column') || e.message.includes('already exists')) {
-                console.log('✓ Student.semesterStartDate 字段已存在，跳过');
-            } else {
-                console.log('添加 Student.semesterStartDate 字段时出错:', e.message);
-            }
-        }
-        
-        console.log('数据库迁移完成！');
-        await sequelize.close();
-        process.exit(0);
     } catch (error) {
         if (error.message.includes('already exists')) {
-            console.log('CourseReminderConfig 表已存在，尝试添加字段...');
-            
-            try {
-                await sequelize.getQueryInterface().addColumn('Student', 'semesterStartDate', {
-                    type: DataTypes.STRING(50),
-                    allowNull: true
-                });
-                console.log('✓ 成功添加 Student.semesterStartDate 字段');
-            } catch (e) {
-                if (e.message.includes('Duplicate column') || e.message.includes('already exists')) {
-                    console.log('✓ Student.semesterStartDate 字段已存在，跳过');
-                }
-            }
-            
-            console.log('数据库迁移完成！');
-            await sequelize.close();
-            process.exit(0);
+            console.log('CourseReminderConfig 表已存在，检查并添加缺失字段...');
         } else {
-            console.error('迁移失败:', error.message);
-            await sequelize.close();
-            process.exit(1);
+            throw error;
         }
     }
+    
+    const columnsToAdd = [
+        {
+            table: 'CourseReminderConfig',
+            column: 'semesterStartDate',
+            definition: { type: DataTypes.STRING(50), allowNull: true }
+        },
+        {
+            table: 'CourseReminderConfig',
+            column: 'currentWeek',
+            definition: { type: DataTypes.INTEGER, defaultValue: 1 }
+        },
+        {
+            table: 'CourseReminderConfig',
+            column: 'remindBeforeClass',
+            definition: { type: DataTypes.BOOLEAN, defaultValue: true }
+        },
+        {
+            table: 'CourseReminderConfig',
+            column: 'remindTomorrowCourse',
+            definition: { type: DataTypes.BOOLEAN, defaultValue: true }
+        },
+        {
+            table: 'Student',
+            column: 'semesterStartDate',
+            definition: { type: DataTypes.STRING(50), allowNull: true }
+        }
+    ];
+    
+    for (const col of columnsToAdd) {
+        try {
+            await sequelize.getQueryInterface().addColumn(col.table, col.column, col.definition);
+            console.log(`✓ 成功添加 ${col.table}.${col.column} 字段`);
+        } catch (e) {
+            if (e.message.includes('Duplicate column') || e.message.includes('already exists')) {
+                console.log(`✓ ${col.table}.${col.column} 字段已存在，跳过`);
+            } else {
+                console.log(`添加 ${col.table}.${col.column} 字段时出错:`, e.message);
+            }
+        }
+    }
+    
+    console.log('数据库迁移完成！');
+    await sequelize.close();
+    process.exit(0);
 }
 
 migrate();

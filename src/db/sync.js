@@ -68,84 +68,108 @@ async function syncStudent(studentId, info, semesterStartDate = null) {
 async function syncCourses(studentId, courses) {
     if (!studentId || !courses || !Array.isArray(courses)) return;
     
-    const semesterSet = new Set();
-    for (const course of courses) {
-        if (course && course.semester) semesterSet.add(course.semester);
-    }
+    console.log(`syncCourses: 开始同步用户 ${studentId} 的课表，课程数: ${courses.length}`);
     
-    for (const sem of semesterSet) {
-        const existingCount = await Course.count({ where: { studentId, semester: sem } });
-        if (existingCount > 0) {
-            console.log(`syncCourses: 学期 ${sem} 课程已存在，跳过更新`);
-            continue;
-        }
+    return withDbRetry(async () => {
+        const { decrypt } = require('../utils/encryption');
         
-        const rows = [];
-        for (const course of courses) {
-            if (!course || course.semester !== sem) continue;
-            const period = (course.period || '').toString().trim();
-            if (!period) continue;
-            const week = Number.isFinite(course.week) ? course.week : parseInt(String(course.week || '0'), 10);
-            if (!Number.isFinite(week)) continue;
-            
-            const encryptedCourse = encryptCourse(course);
-            
-            rows.push({
-                studentId,
-                semester: encryptedCourse.semester,
-                name: encryptedCourse.name,
-                dayOfWeek: encryptedCourse.dayOfWeek,
-                week: week,
-                period: period,
-                teacher: encryptedCourse.teacher,
-                weeks: encryptedCourse.weeks,
-                location: encryptedCourse.location,
-                courseType: encryptedCourse.courseType,
-                raw: encryptedCourse.raw
-            });
-        }
+        const existingCourses = await Course.findAll({
+            where: { studentId }
+        });
         
-        if (rows.length > 0) {
-            const dedupMap = new Map();
-            for (const r of rows) {
-                const key = [
-                    r.studentId,
-                    r.semester,
-                    r.name,
-                    r.dayOfWeek,
-                    String(r.week),
-                    r.period
-                ].join('||');
-
-                const prev = dedupMap.get(key);
-                if (!prev) {
-                    dedupMap.set(key, r);
-                    continue;
-                }
-
-                const prevRawLen = prev.raw ? String(prev.raw).length : 0;
-                const nextRawLen = r.raw ? String(r.raw).length : 0;
-
-                const merged = {
-                    ...prev,
-                    teacher: (prev.teacher && String(prev.teacher).trim()) ? prev.teacher : r.teacher,
-                    location: (prev.location && String(prev.location).trim()) ? prev.location : r.location,
-                    weeks: (prev.weeks && String(prev.weeks).trim()) ? prev.weeks : r.weeks,
-                    raw: nextRawLen > prevRawLen ? r.raw : prev.raw
-                };
-
-                dedupMap.set(key, merged);
+        console.log(`syncCourses: 数据库中现有课程数: ${existingCourses.length}`);
+        
+        const existingMap = new Map();
+        existingCourses.forEach(course => {
+            const decryptedName = decrypt(course.name) || course.name;
+            const key = `${decryptedName}_${course.dayOfWeek}_${course.period}`;
+            
+            if (!existingMap.has(key)) {
+                existingMap.set(key, []);
             }
-
-            const dedupRows = Array.from(dedupMap.values());
+            existingMap.get(key).push(course);
+        });
+        
+        const newMap = new Map();
+        courses.forEach(course => {
+            if (!course || !course.period) return;
+            const period = course.period.toString().trim();
+            if (!period) return;
             
-            await withDbRetry(async () => {
-                await Course.bulkCreate(dedupRows);
-            }, `syncCourses (${sem})`);
+            const key = `${course.courseName}_${course.dayOfWeek}_${period}`;
             
-            console.log(`syncCourses: 新增学期 ${sem} 课程 ${dedupRows.length} 条`);
+            if (!newMap.has(key)) {
+                newMap.set(key, []);
+            }
+            newMap.get(key).push(course);
+        });
+        
+        let newCount = 0;
+        let updateCount = 0;
+        let deleteCount = 0;
+        
+        for (const [key, newCourseList] of newMap) {
+            const existingCourseList = existingMap.get(key) || [];
+            
+            if (existingCourseList.length === 0) {
+                for (const newCourse of newCourseList) {
+                    const encryptedCourse = encryptCourse(newCourse);
+                    await Course.create({
+                        studentId,
+                        ...encryptedCourse
+                    });
+                    newCount++;
+                }
+            } else {
+                const newWeeksSet = new Set();
+                const newLocation = newCourseList[0].location || '';
+                const newTeacher = newCourseList[0].teacher || '';
+                
+                newCourseList.forEach(c => {
+                    if (c.weeks) {
+                        const weeksList = String(c.weeks).split(',').map(w => parseInt(w.trim())).filter(w => !isNaN(w));
+                        weeksList.forEach(w => newWeeksSet.add(w));
+                    }
+                    if (c.week) {
+                        newWeeksSet.add(c.week);
+                    }
+                });
+                
+                const newWeeks = Array.from(newWeeksSet).sort((a, b) => a - b).join(',');
+                
+                const existing = existingCourseList[0];
+                const existingLocation = decrypt(existing.location) || '';
+                const existingWeeks = decrypt(existing.weeks) || '';
+                
+                if (newLocation !== existingLocation || newWeeks !== existingWeeks) {
+                    await existing.update({
+                        location: encrypt(newLocation),
+                        weeks: newWeeks ? encrypt(newWeeks) : null,
+                        week: newCourseList[0].week,
+                        teacher: encrypt(newTeacher),
+                        raw: JSON.stringify(newCourseList[0])
+                    });
+                    updateCount++;
+                }
+                
+                for (let i = 1; i < existingCourseList.length; i++) {
+                    await existingCourseList[i].destroy();
+                    deleteCount++;
+                }
+                
+                existingMap.delete(key);
+            }
         }
-    }
+        
+        for (const [key, oldCourseList] of existingMap) {
+            for (const oldCourse of oldCourseList) {
+                await oldCourse.destroy();
+                deleteCount++;
+            }
+        }
+        
+        console.log(`syncCourses: 同步完成 - 新增:${newCount}, 更新:${updateCount}, 删除:${deleteCount}`);
+    }, 'syncCourses');
 }
 
 async function syncGrades(studentId, gradesGrouped) {

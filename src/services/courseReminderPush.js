@@ -201,15 +201,24 @@ function parseWeeksString(weeksStr) {
 }
 
 function isCourseInCurrentWeek(course, currentWeek) {
+    const encryptedName = course.name || '未知课程';
+    const courseName = decrypt(encryptedName) || encryptedName;
+    
     if (course.weeks) {
-        const weekList = parseWeeksString(course.weeks);
-        return weekList.includes(currentWeek);
+        const encryptedWeeks = course.weeks;
+        const weekList = parseWeeksString(encryptedWeeks);
+        const inWeek = weekList.includes(currentWeek);
+        console.log(`[周次检查] ${courseName} - weeks字段: ${encryptedWeeks}, 解析结果: [${weekList.join(',')}], 当前周: ${currentWeek}, 结果: ${inWeek}`);
+        return inWeek;
     }
     
     if (course.week) {
-        return course.week === currentWeek;
+        const inWeek = course.week === currentWeek;
+        console.log(`[周次检查] ${courseName} - week字段: ${course.week}, 当前周: ${currentWeek}, 结果: ${inWeek}`);
+        return inWeek;
     }
     
+    console.log(`[周次检查] ${courseName} - 无周次信息，默认显示`);
     return true;
 }
 
@@ -361,10 +370,12 @@ async function sendBeforeClassReminders() {
                         studentId: user.studentId,
                         dayOfWeek: dayOfWeekChinese,
                         semester: currentSemester
-                    }
+                    },
+                    order: [['period', 'ASC']]
                 });
 
                 console.log(`[课程提醒] 用户 ${user.studentId} 数据库中${dayOfWeekChinese}课程总数: ${courses.length} (学期: ${currentSemester})`);
+                console.log(`[课程提醒] 实时查询数据库，无缓存`);
 
                 const seenCourses = new Set();
                 const validCourses = [];
@@ -372,7 +383,10 @@ async function sendBeforeClassReminders() {
                 for (const course of courses) {
                     checkedCount++;
                     
-                    if (!isCourseInCurrentWeek(course, currentWeek)) {
+                    const courseData = course.get({ plain: true });
+                    console.log(`[课程数据] 原始数据 - id: ${courseData.id}, name: ${courseData.name}, week: ${courseData.week}, weeks: ${courseData.weeks}, period: ${courseData.period}`);
+                    
+                    if (!isCourseInCurrentWeek(courseData, currentWeek)) {
                         continue;
                     }
                     
@@ -412,11 +426,16 @@ async function sendBeforeClassReminders() {
                         
                         console.log(`[课程提醒] >>> 触发课前提醒: ${course.courseName}, ${course.minutesUntil}分钟后开始 (阈值: ${userConfig.beforeClassMinutes}分钟)`);
                         
+                        const courseStartHour = Math.floor(course.startMinutes / 60);
+                        const courseStartMinute = course.startMinutes % 60;
+                        const courseStartTimeStr = `${String(courseStartHour).padStart(2, '0')}:${String(courseStartMinute).padStart(2, '0')}`;
+                        
                         const result = await pushService.notifyCourseReminder(user.studentId, {
                             type: 'before_class',
                             courseName: course.courseName,
                             location: course.location,
                             startTime: course.period,
+                            courseStartTime: courseStartTimeStr,
                             message: `${course.courseName} 将在${course.minutesUntil}分钟后开始\n地点: ${course.location || '待定'}\n时间: ${course.period || '-'}`
                         }, user.pushToken);
                         
@@ -527,10 +546,12 @@ async function sendTomorrowCourseReminders() {
                         studentId: user.studentId,
                         dayOfWeek: tomorrowDayNameChinese,
                         semester: currentSemester
-                    }
+                    },
+                    order: [['period', 'ASC']]
                 });
 
                 console.log(`[课程提醒] 用户 ${user.studentId} 数据库中${tomorrowDayNameChinese}课程总数: ${courses.length} (学期: ${currentSemester})`);
+                console.log(`[课程提醒] 实时查询数据库，无缓存`);
 
                 if (courses.length === 0) continue;
 
@@ -538,7 +559,10 @@ async function sendTomorrowCourseReminders() {
                 const uniqueCourses = [];
                 
                 for (const c of courses) {
-                    if (!isCourseInCurrentWeek(c, currentWeek)) {
+                    const courseData = c.get({ plain: true });
+                    console.log(`[课程数据] 原始数据 - id: ${courseData.id}, name: ${courseData.name}, week: ${courseData.week}, weeks: ${courseData.weeks}, period: ${courseData.period}`);
+                    
+                    if (!isCourseInCurrentWeek(courseData, currentWeek)) {
                         continue;
                     }
                     
