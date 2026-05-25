@@ -1,0 +1,17 @@
+{
+    "github.copilot.git.commitMessageLanguage": "zh-CN",
+    "python-envs.pythonProjects": [
+        {
+            "path": "Data-collection-and-preprocessing/NO3-work",
+            "envManager": "ms-python.python:system",
+            "packageManager": "ms-python.python:pip",
+            "workspace": "MyHome"
+        },
+        {
+            "path": "",
+            "envManager": "ms-python.python:system",
+            "packageManager": "ms-python.python:pip"
+        }
+    ],
+    "git.ignoreLimitWarning": true
+}

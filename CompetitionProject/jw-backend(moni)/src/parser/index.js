@@ -1,0 +1,428 @@
+const cheerio = require('cheerio');
+
+/**
+ * 解析学生个人信息
+ */
+function parseStudentInfo(html) {
+    const $ = cheerio.load(html);
+    const studentInfo = {
+        name: '',
+        gender: '',
+        enrollmentYear: '',
+        className: '',
+        major: '',
+        college: ''
+    };
+
+    const $table = $('#xjkpTable');
+    if ($table.length === 0) return null;
+
+    studentInfo.name = $table.find('td:contains("姓名")').first().next('td').text().replace(/\s+/g, '');
+    studentInfo.gender = $table.find('td:contains("性别")').first().next('td').text().replace(/\s+/g, '');
+
+    $table.find('td').each((i, el) => {
+        const text = $(el).text().trim();
+        if (text.includes('院系：')) {
+            studentInfo.college = text.split('：')[1].trim();
+        } else if (text.includes('专业：')) {
+            studentInfo.major = text.split('：')[1].trim();
+        } else if (text.includes('班级：')) {
+            studentInfo.className = text.split('：')[1].trim();
+        }
+    });
+
+    studentInfo.enrollmentYear = $table.find('td:contains("入学日期")').next('td').text().replace(/\s+/g, '');
+
+    return studentInfo;
+}
+
+/**
+ * 解析课表信息
+ */
+function parseTimetable(html) {
+    const $ = cheerio.load(html);
+    const courses = [];
+
+    // 学期字段在不同学校/版本里 id 不一致：常见是 xnxq01id / xnxqh
+    // 兜底：取页面第一个 selected 的 option（一般就是学年学期下拉的选中项）
+    let semester =
+        $('#xnxq01id option:selected').first().text().trim() ||
+        $('#xnxqh option:selected').first().text().trim() ||
+        $('.Nsb_right_title_sj').text().trim() ||
+        $('option[selected]').first().text().trim() ||
+        '未知学期';
+    
+    const $table = $('#kbtable');
+
+    // 解析工具：把 div 内 HTML 变成“带换行”的纯文本行
+    const htmlToLines = (innerHtml) => {
+        if (!innerHtml) return [];
+        const withNewlines = String(innerHtml)
+            // 关键：强智系统大量使用 <br/>，不能只 split("<br>")
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/&nbsp;/gi, ' ');
+        const text = cheerio.load(`<div>${withNewlines}</div>`).text();
+        return text
+            .split('\n')
+            .map(s => String(s).trim())
+            .filter(Boolean);
+    };
+
+    // 周次规范化（只保留数字/逗号/短横线；保留“全部”但去掉括号）
+    const normalizeWeeks = (input) => {
+        if (!input) return '';
+        let s = String(input).replace(/\s+/g, '');
+        s = s.replace(/（/g, '(').replace(/）/g, ')');
+        s = s.replace(/[，、]/g, ',');
+        s = s.replace(/[～—–－]/g, '-');
+        s = s.replace(/至/g, '-');
+        // 去掉节次残留：支持 01-02节 / 05-06-07节 / 09-10-11-12节
+        s = s.replace(/\[?\d{1,2}(?:-\d{1,2})+节\]?/g, '');
+        s = s.replace(/周/g, '');
+        let hasAll = false;
+        s = s.replace(/\((.*?)\)/g, (_m, inner) => {
+            if (String(inner).includes('全部')) {
+                hasAll = true;
+                return '全部';
+            }
+            return '';
+        });
+        s = s.replace(/第/g, '').replace(/单/g, '').replace(/双/g, '');
+        const m = s.match(/[0-9]{1,2}(?:-[0-9]{1,2})?(?:,[0-9]{1,2}(?:-[0-9]{1,2})?)*/);
+        if (m && m[0]) return m[0] + (hasAll ? '全部' : '');
+        if (hasAll) return '全部';
+        return s.replace(/[^0-9,\-全都部,]/g, '');
+    };
+
+    // 将周次表达式拆分为单周数组（不做单双周推断，仅按范围/逗号展开）
+    const parseWeekList = (expr) => {
+        if (!expr) return [];
+        const s = String(expr).replace(/全部/g, '').replace(/[^0-9,\-]/g, '');
+        if (!s) return [];
+        const out = [];
+        for (const part of s.split(',').filter(Boolean)) {
+            if (part.includes('-')) {
+                const [a, b] = part.split('-');
+                const start = parseInt(a, 10);
+                const end = parseInt(b, 10);
+                if (!Number.isNaN(start) && !Number.isNaN(end)) {
+                    const lo = Math.min(start, end);
+                    const hi = Math.max(start, end);
+                    for (let w = lo; w <= hi; w++) out.push(w);
+                }
+            } else {
+                const w = parseInt(part, 10);
+                if (!Number.isNaN(w)) out.push(w);
+            }
+        }
+        return Array.from(new Set(out)).sort((x, y) => x - y);
+    };
+
+    // 遍历每个格子：优先取详细版 kbcontent（包含老师/节次），没有再取 kbcontent1
+    $table.find('td').each((_, td) => {
+        const $td = $(td);
+        const $detail = $td.find('div.kbcontent').first();
+        const $simple = $td.find('div.kbcontent1').first();
+        const $contentEl = $detail.length ? $detail : $simple;
+        if (!$contentEl.length) return;
+
+        const content = $contentEl.html() || '';
+        if (!content.trim() || content.trim() === '&nbsp;') return;
+
+        // 通过单元格在行中的索引来确定星期几（index 1 是周一）
+        const columnIndex = $td.index();
+        const weekDays = ['', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
+        const dayOfWeek = weekDays[columnIndex] || '未知';
+
+        const lines = htmlToLines(content);
+        if (lines.length === 0) return;
+
+        // 按分隔线拆分（同一格可能有多门课）
+        const chunks = [];
+        let current = [];
+        for (const line of lines) {
+            if (/^-{5,}$/.test(line)) {
+                if (current.length > 0) chunks.push(current);
+                current = [];
+                continue;
+            }
+            current.push(line);
+        }
+        if (current.length > 0) chunks.push(current);
+
+        for (const chunkLines of chunks) {
+            if (!chunkLines || chunkLines.length < 2) continue;
+            if (chunkLines.length === 1 && chunkLines[0] === '&nbsp;') continue;
+
+            // 强智详细版常见结构：
+            // 0: 课程名[学时][性质]
+            // 1: 老师
+            // 2: 班级/周次/节次（包含 [01-02节]）
+            // 3: 上课地点
+            const rawText = chunkLines.join(' | ');
+            const titleLine = chunkLines[0] || '';
+            
+            // 提取课程类型（必修/选修）
+            let courseType = '';
+            const typeMatch = titleLine.match(/\[(必修|选修|必修课|选修课|公共必修|专业必修|专业选修|公共选修)\]/);
+            if (typeMatch) {
+                courseType = typeMatch[1];
+            }
+            
+            const name = String(titleLine).replace(/\[.*?\]/g, '').trim() || titleLine.trim();
+
+            // 找到“包含节次”的那一行作为时间行
+            let timeLineIndex = chunkLines.findIndex(l =>
+                /\[\d{1,2}(?:-\d{1,2})+节\]/.test(l) || /(\d{1,2})(?:-(\d{1,2}))+节/.test(l)
+            );
+            if (timeLineIndex === -1) {
+                // 兜底：存在但格式不含“节]”
+                timeLineIndex = chunkLines.findIndex(l => (l.includes('周') || l.includes('节') || (l.includes('[') && l.includes(']'))));
+            }
+            const weekStr = timeLineIndex !== -1 ? (chunkLines[timeLineIndex] || '') : '';
+            const timeLine = String(weekStr).replace(/\s+/g, '');
+
+            // 节次
+            let periodStr = '';
+            // periodToken：用于从周次字符串里剔除节次（必须用原始 token，否则 05-06-07 会剔不干净）
+            let periodToken = '';
+            const periodBracketMatch = timeLine.match(/\[(\d{1,2})(?:-(\d{1,2}))+节\]/);
+            if (periodBracketMatch) {
+                periodToken = periodBracketMatch[0]; // 例如 "[05-06-07节]"
+                periodStr = `${periodBracketMatch[1]}-${periodBracketMatch[2]}节`;
+            }
+            const periodMatch = weekStr.match(/(\d{1,2})(?:-(\d{1,2}))+节/);
+            if (periodMatch) {
+                periodToken = periodToken || periodMatch[0]; // 例如 "05-06-07节"
+                periodStr = `${periodMatch[1]}-${periodMatch[2]}节`;
+            }
+
+            // 周次（剔除节次残留）
+            let weeksOnlySource = timeLine;
+            if (periodToken) weeksOnlySource = weeksOnlySource.replace(periodToken, '');
+            // 再兜底剔除一次“范围形式”的节次（例如 periodStr=05-07节 / timeLine=...05-06-07节...）
+            if (periodStr) {
+                weeksOnlySource = weeksOnlySource.replace(periodStr, '').replace(periodStr.replace('节', ''), '');
+            }
+            const weekExpr = normalizeWeeks(weeksOnlySource);
+            const weekList = parseWeekList(weekExpr);
+
+            // 老师：优先从带有 title='老师' 的标签中提取
+            let teacher = '';
+            const teacherLine = chunkLines.find(l => l.includes('老师') || l.includes('曾') || l.includes('讲师'));
+            if (teacherLine) {
+                teacher = teacherLine.replace(/^老师[:：]?\s*/g, '').trim();
+            } else if (chunkLines.length >= 2) {
+                teacher = String(chunkLines[1]).replace(/^老师[:：]?\s*/g, '').trim();
+            }
+
+            // 上课地点：优先从带有 title='教室' 或 '上课地点' 的标签中提取
+            let location = '未知';
+            const locationLine = chunkLines.find(l => l.includes('教室') || l.includes('实验室') || l.includes('阶梯教室'));
+            if (locationLine) {
+                location = locationLine.replace(/^上课地点[:：]?\s*/g, '').replace(/^教室[:：]?\s*/g, '').trim();
+            } else {
+                location = chunkLines[chunkLines.length - 1] || '未知';
+                if (location === weekStr && chunkLines.length >= 3) {
+                    location = chunkLines[chunkLines.length - 2] || '未知';
+                }
+                location = String(location).replace(/^上课地点[:：]?\s*/g, '').trim() || '未知';
+            }
+
+            const base = {
+                semester,
+                dayOfWeek,
+                name,
+                teacher,
+                period: periodStr,
+                location,
+                courseType,
+                raw: rawText
+            };
+
+            // 按周拆分存储：每条记录对应一个 week
+            if (weekList.length > 0) {
+                for (const weekNum of weekList) {
+                    courses.push({
+                        ...base,
+                        week: weekNum,
+                        weeks: String(weekNum)
+                    });
+                }
+            } else {
+                courses.push({
+                    ...base,
+                    week: 0,
+                    weeks: '0'
+                });
+            }
+        }
+    });
+
+    return courses;
+}
+
+/**
+ * 解析成绩信息
+ */
+function parseGrades(html) {
+    const $ = cheerio.load(html);
+    const gradesGrouped = {};
+
+    let $table = $('#dataList');
+    if ($table.length === 0) {
+        $table = $('table').filter((i, el) => $(el).text().includes('成绩') && $(el).find('tr').length > 1);
+    }
+    
+    $table.find('tr').each((i, el) => {
+        const tds = $(el).find('td');
+        const firstTdText = $(tds[0]).text().trim();
+        if (!firstTdText || firstTdText === '序号' || firstTdText.includes('课程')) return;
+
+        if (tds.length >= 6) {
+            const semester = $(tds[1]).text().trim();
+            const gradeItem = {
+                courseCode: $(tds[2]).text().trim(),
+                courseName: $(tds[3]).text().trim(),
+                score: $(tds[4]).text().trim(),
+                credit: $(tds[5]).text().trim(),
+                gradePoint: $(tds[6]).text().trim(),
+                courseType: $(tds[7]).text().trim(),
+                examType: $(tds[8]).text().trim()
+            };
+
+            if (!gradesGrouped[semester]) {
+                gradesGrouped[semester] = [];
+            }
+            gradesGrouped[semester].push(gradeItem);
+        }
+    });
+
+    return gradesGrouped;
+}
+
+/**
+ * 解析考试安排
+ */
+function parseExams(html) {
+    const $ = cheerio.load(html);
+    const exams = [];
+    const $table = $('#dataList');
+    
+    if ($table.length === 0) {
+        return exams;
+    }
+    
+    $table.find('tr').each((i, el) => {
+        if (i === 0) {
+            return;
+        }
+        
+        const tds = $(el).find('td');
+        
+        // 检查是否是"未查询到数据"的提示行
+        const firstTdText = $(tds[0]).text().trim();
+        if (firstTdText === '未查询到数据' || tds.length === 1) {
+            return;
+        }
+        
+        if (tds.length >= 7) {
+            const exam = {
+                courseName: $(tds[3]).text().trim(),  // 课程名称在第3列
+                examTime: $(tds[4]).text().trim(),    // 考试时间在第4列
+                location: $(tds[5]).text().trim(),     // 考场在第5列
+                seatNumber: $(tds[6]).text().trim(),   // 座位号在第6列
+                examType: $(tds[1]).text().trim(),     // 考试场次作为考试类型在第1列
+                status: $(tds[7]).text().trim()        // 准考证号作为状态在第7列
+            };
+            
+            exams.push(exam);
+        }
+    });
+    
+    return exams;
+}
+
+/**
+ * 解析学期计划
+ * HTML表格结构：
+ * tds[0]: 序号
+ * tds[1]: 开课学期
+ * tds[2]: 课程编号
+ * tds[3]: 课程名称
+ * tds[4]: 开课单位
+ * tds[5]: 学分
+ * tds[6]: 总学时
+ * tds[7]: 考核方式
+ * tds[8]: 课程属性（必修/选修）
+ * tds[9]: 是否考试
+ */
+function parseSemesterPlan(html) {
+    const $ = cheerio.load(html);
+    const plansGrouped = {};
+    const $table = $('#dataList');
+    
+    $table.find('tr').each((i, el) => {
+        if (i === 0) return;
+        const tds = $(el).find('td');
+        if (tds.length >= 9) {
+            const semester = $(tds[1]).text().trim();
+            const planItem = {
+                courseCode: $(tds[2]).text().trim(),
+                courseName: $(tds[3]).text().trim(),
+                teachingUnit: $(tds[4]).text().trim(),
+                credit: $(tds[5]).text().trim(),
+                totalHours: $(tds[6]).text().trim(),
+                examType: $(tds[7]).text().trim(),
+                courseAttribute: $(tds[8]).text().trim(),
+                isExam: $(tds[9]).text().trim()
+            };
+
+            if (!plansGrouped[semester]) {
+                plansGrouped[semester] = [];
+            }
+            plansGrouped[semester].push(planItem);
+        }
+    });
+
+    return plansGrouped;
+}
+
+/**
+ * 解析学习进度
+ */
+function parseStudyProgress(html) {
+    const $ = cheerio.load(html);
+    const progressData = [];
+
+    const $table = $('table').filter((i, el) => {
+        const headText = $(el).find('tr').first().text();
+        return headText.includes('课程体系') && headText.includes('要求学分');
+    }).first();
+    
+    $table.find('tr').each((i, el) => {
+        const tds = $(el).find('td');
+        if (tds.length < 5) return;
+        const category = $(tds[0]).text().trim();
+        if (!category || category === '课程体系(属性)') return;
+
+        progressData.push({
+            category: category,
+            requiredCredits: $(tds[1]).text().trim(),
+            completedCredits: $(tds[2]).text().trim(),
+            currentCredits: $(tds[3]).text().trim(),
+            remainingCredits: $(tds[4]).text().trim()
+        });
+    });
+
+    return progressData;
+}
+
+module.exports = {
+    parseStudentInfo,
+    parseTimetable,
+    parseGrades,
+    parseExams,
+    parseSemesterPlan,
+    parseStudyProgress
+};

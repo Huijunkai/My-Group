@@ -1,0 +1,11 @@
+1.决策树
+分类树与回归树使用的包是： rpart
+树可视化函数：rpart.plot()
+决策树涉及的核心内容: 复杂度参数cp和剪枝
+决策时交叉验证选择最佳cp
+
+2.随机森林
+包：randomForest
+计算袋外误差，使用: OOB error
+计算变量的重要性，使用: importance、varlmPlot
+调参使用: caret对mtry镜像调试(也叫5折交叉验证)
