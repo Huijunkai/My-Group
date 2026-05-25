@@ -1,140 +1,318 @@
-# 大三学期协作开发项目集合
+# 教务系统后端服务
 
-## 项目简介
+教务系统数据同步与推送服务，为 HarmonyOS 原生应用 [青序](https://github.com/yiqi-jing/qinxu) 提供后端 API 支持。
 
-本仓库包含 2025-2026 学年大三学生的全部协作开发项目，是团队合作能力与技术实践的成果展示。通过这些项目，学生们在实际开发中应用所学知识，培养团队协作精神和解决问题的能力。
+## 项目概述
 
-## 项目特点
+本服务是一个 Node.js 后端应用，主要功能包括：
 
-- **多样性**：包含多个不同类型的协作开发项目，涵盖前端、后端、全栈等多个方向
-- **实用性**：项目设计紧贴实际应用场景，注重解决实际问题
-- **技术覆盖**：涵盖多种主流技术栈和开发方法，适应现代软件开发需求
-- **团队协作**：展示团队成员之间的分工合作、沟通协调能力
-- **完整文档**：提供详细的项目文档和代码实现，便于学习和参考
-
-## 目录结构
-
-```
-├── frontend-projects/    # 前端项目
-│   ├── react-app/        # React 应用
-│   ├── vue-project/      # Vue 项目
-│   └── vanilla-js/       # 原生 JavaScript 项目
-├── backend-projects/     # 后端项目
-│   ├── nodejs-api/       # Node.js API 服务
-│   ├── python-flask/     # Python Flask 应用
-│   └── java-spring/      # Java Spring 项目
-├── fullstack-projects/   # 全栈项目
-│   ├── mern-stack/       # MongoDB + Express + React + Node.js
-│   └── mean-stack/       # MongoDB + Express + Angular + Node.js
-└── README.md             # 项目说明文档
-```
+- **教务数据同步**：从强智教务系统抓取学生课表、成绩、考试安排等数据
+- **数据加密传输**：使用 AES-256-CBC 加密敏感数据，确保传输安全
+- **实时推送通知**：集成华为推送服务，支持成绩发布、考试安排、电费提醒等通知
+- **电费查询监控**：支持南宁/桂林校区宿舍电费查询与低余额提醒
+- **空教室查询**：提供校区空教室查询服务
+- **公告通知**：抓取教务处公告并推送关键通知
 
 ## 技术栈
 
-### 前端技术
-- **基础**：HTML5, CSS3, JavaScript (ES6+)
-- **框架**：React, Vue.js, Angular
-- **样式**：Tailwind CSS, Bootstrap, SCSS
-- **构建工具**：Webpack, Vite, Rollup
-- **状态管理**：Redux, Vuex, Pinia
+| 技术        | 说明                          |
+| --------- | --------------------------- |
+| Node.js   | 运行环境 (v18+)                 |
+| Express   | Web 框架                      |
+| Sequelize | ORM 数据库框架                   |
+| MySQL     | 数据库 (华为云 MariaDB)           |
+| Cheerio   | HTML 解析库                    |
+| Axios     | HTTP 请求库                    |
+| 华为推送      | 消息推送服务                      |
 
-### 后端技术
-- **语言**：Node.js, Python, Java, PHP
-- **框架**：Express, Flask, Spring Boot, Laravel
-- **API**：RESTful API, GraphQL
-- **认证**：JWT, OAuth2
+## 项目结构
 
-### 数据库
-- **关系型**：MySQL, PostgreSQL, SQLite
-- **非关系型**：MongoDB, Redis, Firebase
-
-### 开发工具
-- **版本控制**：Git, GitHub
-- **协作工具**：GitHub Issues, Pull Requests
-- **CI/CD**：GitHub Actions, Jenkins
-- **测试**：Jest, Mocha, pytest, JUnit
-
-## 安装说明
-
-### 1. 克隆仓库
-```bash
-git clone https://github.com/your-username/collaborative-projects.git
-cd collaborative-projects
+```
+f:\jw-backend/
+├── server.js                 # 应用入口，路由定义
+├── package.json              # 项目依赖配置
+│
+├── src/
+│   ├── index.js              # Express 应用配置
+│   │
+│   ├── api/                  # API 接口层
+│   │   ├── auth.js           # 登录认证 API
+│   │   ├── student.js        # 学生数据获取 (课表/成绩/考试/计划)
+│   │   ├── announcement.js   # 教务公告抓取
+│   │   ├── emptyroom.js      # 空教室查询
+│   │   ├── electricity.js    # 电费查询 API
+│   │   └── water.js          # 校园打水服务
+│   │
+│   ├── parser/               # HTML 解析层
+│   │   └── index.js          # 教务系统页面解析器
+│   │
+│   ├── xyyxt/                # 校园一信通集成
+│   │   ├── index.js          # 一信通主入口
+│   │   ├── auth.js           # 一信通认证
+│   │   ├── guilinElec.js     # 桂林校区电费查询
+│   │   └── constants.js      # 常量定义
+│   │
+│   ├── services/             # 业务服务层
+│   │   ├── pushService.js    # 华为推送服务封装
+│   │   ├── realtimePush.js   # 实时推送逻辑
+│   │   ├── courseReminderPush.js  # 课程提醒推送服务
+│   │   ├── electricityMonitor.js  # 电费监控服务
+│   │   ├── notificationMonitor.js # 通知监控服务
+│   │   └── timetableSync.js  # 课表自动同步服务
+│   │
+│   ├── db/                   # 数据库层
+│   │   ├── index.js          # 数据库连接配置
+│   │   ├── sync.js           # 数据同步函数
+│   │   └── models/
+│   │       └── index.js      # Sequelize 模型定义
+│   │
+│   └── utils/                # 工具层
+│       ├── constants.js      # 常量定义
+│       ├── encryption.js     # AES 加密工具
+│       └── request.js        # HTTP 请求封装
+│
+├── tests/                    # 测试文件
+│   ├── test_encryption.js    # 加密测试
+│   ├── test_parse_timetable.js # 课表解析测试
+│   └── ...
+│
+└── docs/
+    ├── PROJECT_PLAN.md       # 项目规划文档
+    └── ADMIN_DASHBOARD.md    # 管理后台文档
 ```
 
-### 2. 安装项目依赖
+## 核心模块说明
 
-#### 前端项目
-```bash
-cd frontend-projects/[项目名称]
-npm install  # 或 yarn install
-npm run dev  # 启动开发服务器
+### 1. 数据获取流程
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              数据获取架构                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐  │
+│   │  server.js  │───▶│  api/*.js   │───▶│  parser     │───▶│  encryption │  │
+│   │  (路由入口)  │    │ (数据获取)   │    │ (HTML解析)   │    │ (数据加密)   │  │
+│   └─────────────┘    └──────┬──────┘    └─────────────┘    └─────────────┘  │
+│         │                   │                                              │
+│         │                   ▼                                              │
+│         │            ┌─────────────┐                                       │
+│         │            │   request   │                                       │
+│         │            │ (HTTP请求)   │                                       │
+│         │            └──────┬──────┘                                       │
+│         │                   │                                              │
+│         ▼                   ▼                                              │
+│   ┌─────────────────────────────────────────────────────────────────────┐  │
+│   │                    强智教务系统                                       │  │
+│   │              http://qzjw.bwgl.cn/gllgdxbwglxy_jsxsd                  │  │
+│   └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### 后端项目
-```bash
-cd backend-projects/[项目名称]
-# 根据项目语言选择相应的包管理器
-# Node.js: npm install && npm start
-# Python: pip install -r requirements.txt && python app.py
-# Java: mvn install && mvn spring-boot:run
+### 2. API 接口
+
+| 接口                          | 方法       | 功能        | 文件              |
+| --------------------------- | -------- | --------- | --------------- |
+| `/api/sync`                 | POST     | 同步学生所有数据  | server.js       |
+| `/api/login`                | POST     | 登录教务系统    | auth.js         |
+| `/api/semester/latest`      | GET      | 获取最新学期    | server.js       |
+| `/api/announcements`        | GET      | 获取公告列表    | announcement.js |
+| `/api/announcements/detail` | GET      | 获取公告详情    | announcement.js |
+| `/api/emptyroom/campuses`   | GET      | 获取校区列表    | emptyroom.js    |
+| `/api/emptyroom/buildings`  | GET      | 获取楼栋列表    | emptyroom.js    |
+| `/api/emptyroom/query`      | POST     | 查询空教室     | emptyroom.js    |
+| `/api/electricity`          | GET      | 查询电费      | electricity.js  |
+| `/api/electricity/settings` | GET/POST | 电费提醒设置    | electricity.js  |
+| `/api/water/scan`           | POST     | 打水服务扫码    | water.js        |
+| `/api/push/register`        | POST     | 注册推送Token | server.js       |
+| `/api/push/unregister`      | POST     | 注销推送Token | server.js       |
+| `/api/push/test`            | POST     | 测试推送功能    | server.js       |
+| `/api/course-reminder/config` | POST   | 更新课程提醒配置 | server.js       |
+| `/api/course-reminder/user-config` | POST | 更新用户课程提醒配置 | server.js |
+| `/api/course-reminder/user-config/:studentId` | GET | 获取用户课程提醒配置 | server.js |
+
+### 3. 数据加密
+
+使用 AES-256-CBC 算法加密敏感数据：
+
+```javascript
+// 加密配置
+const ALGORITHM = 'aes-256-cbc';
+const KEY_LENGTH = 32;    // 密钥长度 32 字节
+const IV_LENGTH = 16;     // 初始向量 16 字节
+
+// 密钥派生
+key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', KEY_LENGTH);
+
+// 加密格式
+encryptedData = 'ENC:' + cipher.update(data, 'utf8', 'base64') + cipher.final('base64');
 ```
 
-### 3. 配置环境变量
+**加密字段：**
 
-每个项目目录下都有 `.env.example` 文件，请根据实际情况创建并配置 `.env` 文件。
+| 数据类型 | 加密字段                                        |
+| ---- | ------------------------------------------- |
+| 学生信息 | name, gender, className, major, college     |
+| 课程   | name, teacher, location, weeks, courseType  |
+| 成绩   | courseName, score, credit, gradePoint       |
+| 考试   | courseName, location, seatNumber            |
+| 计划   | courseName, teachingUnit, credit            |
+| 进度   | category, requiredCredits, completedCredits |
 
-## 贡献指南
+### 4. 数据库模型
 
-### 代码贡献流程
-1. **Fork** 本仓库到你的 GitHub 账号
-2. **克隆** Fork 后的仓库到本地
-   ```bash
-   git clone https://github.com/your-username/collaborative-projects.git
-   cd collaborative-projects
-   ```
-3. **创建**特性分支
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-4. **提交**更改
-   ```bash
-   git add .
-   git commit -m "feat: 添加新功能描述"
-   ```
-5. **推送**到远程分支
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-6. **创建** Pull Request，描述你的更改内容和目的
+| 模型                  | 说明      | 主要字段                                                         |
+| ------------------- | ------- | ------------------------------------------------------------ |
+| Student             | 学生信息    | studentId, name, className, major, college, semesterStartDate  |
+| Course              | 课程表     | studentId, semester, name, dayOfWeek, week, period, location, weeks |
+| Grade               | 成绩记录    | studentId, semester, courseCode, courseName, score, credit   |
+| Exam                | 考试安排    | studentId, courseName, examTime, location, seatNumber        |
+| Plan                | 培养计划    | studentId, semester, courseCode, courseName, credit          |
+| Progress            | 学分进度    | studentId, category, requiredCredits, completedCredits       |
+| UserPushToken       | 推送Token | studentId, pushToken, isActive                               |
+| ElectricityReminder | 电费提醒    | studentId, threshold, roomId, enabled                        |
+| CourseReminderConfig | 课程提醒配置 | studentId, semesterStartDate, currentWeek, beforeClassMinutes, tomorrowHour, tomorrowMinute, enabled |
 
-### 代码规范
-- 遵循项目内的代码风格和命名规范
-- 提交前确保代码通过测试
-- 提交信息使用语义化提交规范
+### 5. 推送服务
+
+#### 5.1 推送类型
+
+| 类型                   | 触发条件      | 说明              | 数据字段                                  |
+| -------------------- | --------- | --------------- | ----------------------------------- |
+| `new_grade`          | 新成绩发布     | 成绩同步时检测到新成绩     | courseName, score, credit, semester |
+| `new_exam`           | 新考试安排     | 考试安排同步时检测到新考试   | courseName, examTime, location      |
+| `exam_reminder`      | 考试提醒      | 考试前24小时提醒       | courseName, examTime, location      |
+| `course_change`      | 课程变动      | 课表变更检测          | changeType, courseName              |
+| `electricity_reminder` | 电费不足      | 余额低于设定阈值        | balance, threshold                  |
+| `announcement`       | 公告通知      | 关键词匹配的教务公告      | title, keyword, url                 |
+
+#### 5.2 课程提醒服务
+
+课程提醒服务支持两种提醒方式：
+
+- **课前提醒**：课程开始前指定分钟数提醒（默认15分钟）
+- **明日提醒**：每天指定时间推送明日课程列表（默认21:00）
+
+服务会自动处理跨周情况（周日晚上推送周一课程时自动切换到下一周）。
+
+#### 5.3 监控服务
+
+| 监控服务 | 检查间隔 | 说明 |
+| ---- | ---- | ---- |
+| 公告监控 | 每10分钟 | 监控教务处公告，匹配关键词推送 |
+| 数据监控 | 每30分钟 | 检测成绩、考试、课表变化 |
+| 电费监控 | 每小时 | 检查宿舍电费余额，低于阈值提醒 |
+| 课表同步 | 每30分钟 | 自动同步用户课表 |
+
+## 安装与运行
+
+### 环境要求
+
+- Node.js >= 18.0.0
+- npm >= 9.0.0
+- MySQL/MariaDB（或使用 SQLite 进行开发）
+
+### 安装依赖
+
+```bash
+cd f:\jw-backend
+npm install
+```
+
+### 配置环境变量
+
+创建 `.env` 文件：
+
+```env
+# 服务端口
+PORT=3000
+
+# 数据库配置
+DB_NAME=app_db
+DB_USER=root
+DB_PASSWORD=your_password
+DB_HOST=127.0.0.1
+DB_PORT=3306
+
+# 加密密钥 (生产环境请更换)
+ENCRYPTION_KEY=NNLG-HarmonyOS-2024-Secret-Key!!
+ENCRYPTION_IV=NNLG-InitVector16
+
+# 华为推送配置
+HUAWEI_PROJECT_ID=your_project_id
+HUAWEI_CLIENT_ID=your_client_id
+HUAWEI_CLIENT_SECRET=your_client_secret
+
+# 课程提醒配置
+COURSE_REMINDER_ENABLED=true
+```
+
+### 启动服务
+
+```bash
+# 开发模式
+npm start
+```
+
+### 运行测试
+
+```bash
+# 运行特定测试
+node tests/test_encryption.js
+node tests/test_parse_timetable.js
+```
+
+## API 使用示例
+
+### 同步学生数据
+
+```bash
+curl -X POST http://localhost:3000/api/sync \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "学号",
+    "password": "密码",
+    "semester": "2024-2025-1"
+  }'
+```
+
+### 查询空教室
+
+```bash
+curl -X POST http://localhost:3000/api/emptyroom/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "semester": "2024-2025-1",
+    "campus": "01",
+    "building": "J01",
+    "weekStart": 1,
+    "weekEnd": 1,
+    "periodStart": "0102",
+    "periodEnd": "0304"
+  }'
+```
+
+### 查询电费
+
+```bash
+curl "http://localhost:3000/api/electricity?username=学号&roomId=H4320&areaId=glxq&buildingId=4320"
+```
+
+## 安全特性
+
+| 特性   | 说明                   |
+| ---- | -------------------- |
+| 传输加密 | AES-256-CBC 加密所有敏感数据 |
+| 密钥派生 | 使用 scrypt 从密码派生密钥    |
+| 数据标识 | 加密数据以 `ENC:` 前缀标识    |
+| 密钥分发 | 通过独立 API 分发密钥，支持动态更新 |
+| 匿名推送 | 使用哈希生成的匿名ID进行推送      |
+
+## 相关项目
+
+- [QinXu HarmonyOS App](https://github.com/yiqi-jing/qinxu) - HarmonyOS 原生应用前端
 
 ## 许可证
 
-本项目采用 MIT 许可证 - 详情见 [LICENSE](LICENSE) 文件
-
-## 团队成员
-
-| 姓名 | 职责 | 联系方式 |
-|------|------|----------|
-| 张三 | 项目负责人 | zhangsan@example.com |
-| 李四 | 前端开发 | lisi@example.com |
-| 王五 | 后端开发 | wangwu@example.com |
-| 赵六 | 全栈开发 | zhaoliu@example.com |
-
-## 项目进度
-
-- ✅ 项目初始化
-- ✅ 前端项目开发
-- ✅ 后端项目开发
-- ✅ 全栈项目开发
-- 📋 项目文档完善
-- 📋 测试与优化
-
-## 鸣谢
-
-感谢所有参与项目开发的团队成员，以及提供技术支持和指导的老师。
+MIT License
