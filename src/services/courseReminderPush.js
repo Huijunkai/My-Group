@@ -537,9 +537,13 @@ async function sendTomorrowCourseReminders() {
                 }
                 
                 const semesterStart = await getSemesterStartDate(user.studentId);
-                const currentWeek = calculateCurrentWeek(semesterStart);
+                let targetWeek = calculateCurrentWeek(semesterStart);
+                if (tomorrowDayOfWeek === 1 && dayOfWeek !== 1) {
+                    targetWeek += 1;
+                    console.log(`[课程提醒] 用户 ${user.studentId} 跨周检测: 今日${DAY_NAMES[dayOfWeek]} -> 明日${DAY_NAMES[tomorrowDayOfWeek]}, 周次从 ${targetWeek - 1} 调整为 ${targetWeek}`);
+                }
                 const currentSemester = getCurrentSemester(semesterStart);
-                console.log(`[课程提醒] 用户 ${user.studentId} 学期开始: ${semesterStart}, 当前周: ${currentWeek}, 学期: ${currentSemester}`);
+                console.log(`[课程提醒] 用户 ${user.studentId} 学期开始: ${semesterStart}, 目标周: ${targetWeek}, 学期: ${currentSemester}`);
                 
                 const courses = await Course.findAll({
                     where: {
@@ -562,7 +566,7 @@ async function sendTomorrowCourseReminders() {
                     const courseData = c.get({ plain: true });
                     console.log(`[课程数据] 原始数据 - id: ${courseData.id}, name: ${courseData.name}, week: ${courseData.week}, weeks: ${courseData.weeks}, period: ${courseData.period}`);
                     
-                    if (!isCourseInCurrentWeek(courseData, currentWeek)) {
+                    if (!isCourseInCurrentWeek(courseData, targetWeek)) {
                         continue;
                     }
                     
